@@ -57,22 +57,38 @@ function ChatPage() {
         const controller = new AbortController();
         abortControllerRef.current = controller;
 
-        // Use ref to accumulate content without triggering renders
-        let assistantContent = '';
-        let rafId = null;
-        let needsUpdate = false;
+        // Character queue for smooth streaming
+        let charQueue = '';
+        let displayedContent = '';
+        let typingInterval = null;
 
-        const scheduleUpdate = () => {
-            if (!needsUpdate) return;
-            needsUpdate = false;
-            setMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                    role: 'assistant',
-                    content: assistantContent,
-                };
-                return updated;
-            });
+        // Start character-by-character display loop (20 chars/sec = 50ms per char)
+        const startTyping = () => {
+            if (typingInterval) return; // Already running
+            typingInterval = setInterval(() => {
+                if (charQueue.length > 0) {
+                    // Take next character from queue
+                    displayedContent += charQueue[0];
+                    charQueue = charQueue.slice(1);
+
+                    // Update UI
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        updated[updated.length - 1] = {
+                            role: 'assistant',
+                            content: displayedContent,
+                        };
+                        return updated;
+                    });
+                }
+            }, 50); // 20 chars/sec
+        };
+
+        const stopTyping = () => {
+            if (typingInterval) {
+                clearInterval(typingInterval);
+                typingInterval = null;
+            }
         };
 
         try {
@@ -98,12 +114,8 @@ function ChatPage() {
             // Add empty assistant message
             setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
-            // Start render loop — updates UI at 60fps max
-            const renderLoop = () => {
-                scheduleUpdate();
-                rafId = requestAnimationFrame(renderLoop);
-            };
-            rafId = requestAnimationFrame(renderLoop);
+            // Start typing animation
+            startTyping();
 
             let buffer = '';
             while (true) {
@@ -112,7 +124,6 @@ function ChatPage() {
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
-                // Keep last incomplete line in buffer
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
@@ -124,26 +135,45 @@ function ChatPage() {
                     try {
                         const parsed = JSON.parse(data);
                         if (parsed.error) {
-                            assistantContent += `\n\n**Error:** ${parsed.error}`;
+                            charQueue += `\n\n**Error:** ${parsed.error}`;
                         } else if (parsed.chunk) {
-                            assistantContent += parsed.chunk;
+                            // Add chunk to character queue
+                            charQueue += parsed.chunk;
                         }
-                        needsUpdate = true;
                     } catch {
                         // Skip malformed JSON lines
                     }
                 }
             }
 
-            // Final flush
-            cancelAnimationFrame(rafId);
-            scheduleUpdate();
+            // Wait for queue to empty
+            while (charQueue.length > 0) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            stopTyping();
+
+            // Final render
+            setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: displayedContent,
+                };
+                return updated;
+            });
         } catch (err) {
-            if (rafId) cancelAnimationFrame(rafId);
+            stopTyping();
             if (err.name === 'AbortError') {
                 // User cancelled — keep partial content, do final render
-                needsUpdate = true;
-                scheduleUpdate();
+                setMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                        role: 'assistant',
+                        content: displayedContent,
+                    };
+                    return updated;
+                });
             } else {
                 console.error('Chat error:', err);
                 setMessages(prev => [
@@ -161,13 +191,14 @@ function ChatPage() {
         abortControllerRef.current?.abort();
     }, []);
 
-    // Build model options for Select
-    const modelOptions = providers.flatMap(provider =>
-        provider.models.map(model => ({
+    // Build model options for Select - grouped by provider
+    const modelOptions = providers.map(provider => ({
+        label: provider.name, // Group label
+        options: provider.models.map(model => ({
             value: `${provider.id}/${model.id}`,
-            label: `${model.name}`,
-        }))
-    );
+            label: model.name,
+        })),
+    }));
 
     return (
         <div className="chat-container">
