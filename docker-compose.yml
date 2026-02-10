@@ -24,6 +24,8 @@ services:
     command: start-dev
     ports:
       - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo done"]
       interval: 10s
@@ -74,3 +76,4 @@ services:
 
 volumes:
   mongodb_data:
+  keycloak_data:
