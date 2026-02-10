@@ -39,7 +39,7 @@ spec:
             - name: KC_PROXY_HEADERS
               value: "xforwarded"
             - name: KC_HOSTNAME
-              value: "https://keycloak.dragon-template.xyz"
+              value: "keycloak.dragon-template.xyz"
           volumeMounts:
             - name: keycloak-data
               mountPath: /opt/keycloak/data
