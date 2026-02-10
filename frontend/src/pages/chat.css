@@ -342,17 +342,33 @@
     flex-shrink: 0;
 }
 
+.chat-input-model-selector,
+.chat-input-model-selector.ant-select,
 .chat-input-model-selector .ant-select-selector {
     background: transparent !important;
+    background-color: transparent !important;
     border: none !important;
     color: #fff !important;
     min-width: 110px !important;
     max-width: 150px !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+.chat-input-model-selector .ant-select-selector:hover,
+.chat-input-model-selector.ant-select-focused .ant-select-selector,
+.chat-input-model-selector.ant-select-open .ant-select-selector {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .chat-input-model-selector .ant-select-selection-item {
     color: rgba(255, 255, 255, 0.85) !important;
     font-size: 13px !important;
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 .chat-input-model-selector .ant-select-arrow {

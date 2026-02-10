@@ -66,7 +66,7 @@ function AppLayout({ children }) {
             >
                 <div className="app-logo">
                     <span className="app-logo-icon">🐉</span>
-                    {!collapsed && <span className="app-logo-text">Dragon AI</span>}
+                    {!collapsed && <span className="app-logo-text">Dragon Template</span>}
                 </div>
 
                 <Menu

@@ -1,9 +1,10 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { SendOutlined, StopOutlined } from '@ant-design/icons';
 import { Select } from 'antd';
 
 function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, onModelChange }) {
     const textareaRef = useRef(null);
+    const [hasText, setHasText] = useState(false);
 
     // Auto-resize textarea
     const adjustHeight = () => {
@@ -11,6 +12,8 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
         if (textarea) {
             textarea.style.height = '24px';
             textarea.style.height = Math.min(textarea.scrollHeight, 160) + 'px';
+            // Update hasText state
+            setHasText(textarea.value.trim().length > 0);
         }
     };
 
@@ -25,6 +28,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
         if (!text || isStreaming) return;
         onSend(text);
         textareaRef.current.value = '';
+        setHasText(false);
         adjustHeight();
     };
 
@@ -42,7 +46,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                 <textarea
                     ref={textareaRef}
                     className="chat-input-textarea"
-                    placeholder="Ask Dragon AI anything..."
+                    placeholder="Ask Dragon Template anything..."
                     rows={1}
                     onInput={adjustHeight}
                     onKeyDown={handleKeyDown}
@@ -84,7 +88,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                                 onClick={handleSubmit}
                                 title="Send message"
                             >
-                                <div className="chat-send-icon">⏹</div>
+                                <SendOutlined />
                             </button>
                         )}
                     </div>

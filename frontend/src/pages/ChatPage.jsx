@@ -192,6 +192,7 @@ function ChatPage() {
 
     const handleStop = useCallback(() => {
         abortControllerRef.current?.abort();
+        setIsStreaming(false);
     }, []);
 
     // Build model options for Select - grouped by provider
@@ -205,13 +206,7 @@ function ChatPage() {
 
     return (
         <div className="chat-container">
-            {/* Header */}
-            <div className="chat-header">
-                <span className="chat-header-title">
-                    <RocketOutlined style={{ marginRight: 8 }} />
-                    Dragon AI Chat
-                </span>
-            </div>
+            {/* Header removed */}
 
             {/* Messages area */}
             <div className="chat-messages">
@@ -219,7 +214,7 @@ function ChatPage() {
                     {messages.length === 0 ? (
                         <div className="chat-empty">
                             <div className="chat-empty-icon">🐉</div>
-                            <h3>Welcome to Dragon AI</h3>
+                            <h3>Welcome to Dragon Template</h3>
                             <p>Start a conversation by typing a message below</p>
                         </div>
                     ) : (
