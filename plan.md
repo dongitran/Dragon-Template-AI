@@ -6,26 +6,51 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 1: Project Setup & Docker Infrastructure
+## Phase 1: Project Setup & Docker Infrastructure ✅
 
 **Goal:** Bootstrap the entire project with Docker Compose and verify all services run correctly.
 
-- [ ] Create `docker-compose.yml` with services:
+- [x] Create `docker-compose.yml` with services:
   - **Keycloak** (identity provider)
   - **MongoDB** (database)
   - **Frontend** (ReactJS dev server)
   - **Backend** (Node.js API server)
-- [ ] Initialize ReactJS project in `frontend/`
-- [ ] Initialize Node.js project in `backend/` (Express + MongoDB driver/Mongoose)
-- [ ] Create `Dockerfile` for frontend and backend
-- [ ] Configure environment variables (`.env`)
-- [ ] Verify all containers start and communicate correctly
+- [x] Initialize ReactJS project in `frontend/`
+- [x] Initialize Node.js project in `backend/` (Express + MongoDB driver/Mongoose)
+- [x] Create `Dockerfile` for frontend and backend
+- [x] Configure environment variables (`.env` per service + `.env.sample`)
+- [x] Verify all containers start and communicate correctly
 
 **Deliverable:** `docker-compose up` boots all 4 services successfully.
 
 ---
 
-## Phase 2: Authentication with Keycloak
+## Phase 2: Unit Testing & CI/CD Pipeline
+
+**Goal:** Set up unit testing for both frontend and backend, and create a CI pipeline with GitHub Actions.
+
+- [ ] Backend: Set up Jest testing framework
+  - Install `jest`, `supertest` for API testing
+  - Configure `jest.config.js`
+  - Write unit tests for health endpoint
+  - Write test utilities and helpers
+- [ ] Frontend: Set up Vitest testing framework
+  - Install `vitest`, `@testing-library/react`, `@testing-library/jest-dom`
+  - Configure Vitest in `vite.config.js`
+  - Write unit tests for App component
+  - Write test utilities and helpers
+- [ ] GitHub Actions CI pipeline:
+  - Create `.github/workflows/ci.yml`
+  - Run backend tests on push/PR
+  - Run frontend tests on push/PR
+  - Build Docker images to verify builds pass
+- [ ] Verify CI pipeline runs successfully on push
+
+**Deliverable:** Both projects have unit tests with a green CI pipeline on GitHub Actions.
+
+---
+
+## Phase 3: Authentication with Keycloak
 
 **Goal:** Implement full authentication flow using Keycloak for both frontend and backend.
 
@@ -41,7 +66,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 3: Basic AI Chat
+## Phase 4: Basic AI Chat
 
 **Goal:** Build the core chat interface integrated with Google Gemini, with streaming responses.
 
@@ -59,7 +84,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 4: Chat Session Management
+## Phase 5: Chat Session Management
 
 **Goal:** Implement full conversation management — history, sessions, multi-chat support.
 
@@ -79,7 +104,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 5: Command — Generate Project Plan
+## Phase 6: Command — Generate Project Plan
 
 **Goal:** Add the "Generate Project Plan" command that creates a rich markdown document in an editor view.
 
@@ -102,7 +127,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 6: Command — Generate Workflow
+## Phase 7: Command — Generate Workflow
 
 **Goal:** Add the "Generate Workflow" command that creates interactive flowchart diagrams.
 
@@ -125,7 +150,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 7: Command — Generate Roadmap
+## Phase 8: Command — Generate Roadmap
 
 **Goal:** Add the "Generate Roadmap" command for timeline-based project visualization.
 
@@ -141,7 +166,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 8: Command — Generate Sprint
+## Phase 9: Command — Generate Sprint
 
 **Goal:** Add the "Generate Sprint" command for agile sprint planning.
 
@@ -156,7 +181,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 9: Command — Generate Document
+## Phase 10: Command — Generate Document
 
 **Goal:** Add a general-purpose "Generate Document" command for various document types.
 
@@ -169,7 +194,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 10: Template Management & Projects
+## Phase 11: Template Management & Projects
 
 **Goal:** Allow users to manage all generated artifacts in a centralized library.
 
@@ -184,7 +209,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 11: Polish & Production Readiness
+## Phase 12: Polish & Production Readiness
 
 **Goal:** Final polish, performance, and deployment preparation.
 
