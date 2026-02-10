@@ -28,8 +28,8 @@ export default function LoginPage() {
     return (
         <div className="auth-container">
             <div className="auth-background" />
-            <Card className="auth-card" bordered={false}>
-                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Card className="auth-card" variant="borderless">
+                <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                     <div className="auth-header">
                         <div className="auth-logo">🐉</div>
                         <Title level={2} style={{ margin: 0, color: '#fff' }}>

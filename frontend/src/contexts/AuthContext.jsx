@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -7,10 +7,17 @@ const API_BASE = import.meta.env.VITE_API_URL;
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const refreshTimerRef = useRef(null);
 
     // Check if user is already logged in on mount
     useEffect(() => {
         checkAuth();
+
+        return () => {
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current);
+            }
+        };
     }, []);
 
     const checkAuth = async () => {
@@ -29,6 +36,34 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const scheduleRefresh = useCallback((expiresIn) => {
+        // Clear any existing timer
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current);
+        }
+
+        // Refresh 30 seconds before expiry
+        const refreshTime = (expiresIn - 30) * 1000;
+        if (refreshTime <= 0) return;
+
+        refreshTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+                    method: 'POST',
+                    credentials: 'include',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    scheduleRefresh(data.expiresIn);
+                } else {
+                    setUser(null);
+                }
+            } catch {
+                setUser(null);
+            }
+        }, refreshTime);
+    }, []);
+
     const login = async (username, password) => {
         const res = await fetch(`${API_BASE}/api/auth/login`, {
             method: 'POST',
@@ -44,8 +79,6 @@ export function AuthProvider({ children }) {
 
         const data = await res.json();
         setUser(data.user);
-
-        // Set up token refresh
         scheduleRefresh(data.expiresIn);
 
         return data.user;
@@ -72,35 +105,16 @@ export function AuthProvider({ children }) {
     };
 
     const logout = async () => {
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current);
+        }
+
         await fetch(`${API_BASE}/api/auth/logout`, {
             method: 'POST',
             credentials: 'include',
         });
         setUser(null);
     };
-
-    const scheduleRefresh = useCallback((expiresIn) => {
-        // Refresh 30 seconds before expiry
-        const refreshTime = (expiresIn - 30) * 1000;
-        if (refreshTime <= 0) return;
-
-        setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-                    method: 'POST',
-                    credentials: 'include',
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    scheduleRefresh(data.expiresIn);
-                } else {
-                    setUser(null);
-                }
-            } catch {
-                setUser(null);
-            }
-        }, refreshTime);
-    }, []);
 
     return (
         <AuthContext.Provider value={{ user, loading, login, register, logout }}>
