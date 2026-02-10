@@ -6,8 +6,13 @@ metadata:
   annotations:
     kubernetes.io/ingress.global-static-ip-name: "dragon-ingress-ip"
     networking.gke.io/managed-certificates: "dragon-cert"
+    kubernetes.io/ingress.class: "gce"
 spec:
-  ingressClassName: gce
+  defaultBackend:
+    service:
+      name: keycloak
+      port:
+        number: 8080
   rules:
     - host: keycloak.dragon-template.xyz
       http:
