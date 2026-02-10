@@ -39,6 +39,8 @@ services:
     container_name: dragon-backend
     ports:
       - "3001:3001"
+    environment:
+      NODE_ENV: development
     env_file:
       - ./backend/.env
     volumes:
@@ -46,6 +48,8 @@ services:
       - /app/node_modules
     depends_on:
       mongodb:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     restart: unless-stopped
 
@@ -57,6 +61,8 @@ services:
     container_name: dragon-frontend
     ports:
       - "5173:5173"
+    environment:
+      NODE_ENV: development
     env_file:
       - ./frontend/.env
     volumes:
