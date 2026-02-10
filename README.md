@@ -45,8 +45,8 @@ git clone https://github.com/dongitran/Dragon-Template-AI.git
 cd Dragon-Template-AI
 
 # Copy env samples
-cp backend/.env.sample backend/.env
-cp frontend/.env.sample frontend/.env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 
 # Start all services
 docker compose up --build -d
