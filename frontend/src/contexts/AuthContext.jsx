@@ -1,25 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { mapErrorMessage } from '../utils/errorMessages';
 
 const AuthContext = createContext(null);
 
 const API_BASE = import.meta.env.VITE_API_URL;
-
-/**
- * Map backend error messages to user-friendly messages.
- * Prevents leaking internal details (e.g. Keycloak errors) to the UI.
- */
-function mapErrorMessage(backendError, fallback) {
-    if (!backendError) return fallback;
-    const msg = backendError.toLowerCase();
-
-    if (msg.includes('invalid') || msg.includes('credentials')) return 'Invalid username or password';
-    if (msg.includes('already exists') || msg.includes('duplicate')) return 'An account with this username or email already exists';
-    if (msg.includes('required')) return 'Please fill in all required fields';
-    if (msg.includes('too many')) return 'Too many attempts. Please try again later';
-    if (msg.includes('network') || msg.includes('econnrefused')) return 'Unable to connect to the server. Please try again later';
-
-    return fallback;
-}
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
