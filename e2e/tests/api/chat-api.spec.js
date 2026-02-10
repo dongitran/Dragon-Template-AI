@@ -125,14 +125,24 @@ test.describe('Chat API — Send Message', () => {
         const body = await res.text();
         const lines = body.split('\n').filter(l => l.startsWith('data: '));
 
-        // Should have at least one data chunk and a [DONE] marker
-        expect(lines.length).toBeGreaterThanOrEqual(2);
+        // Should have at least: sessionId event + 1 chunk + [DONE]
+        expect(lines.length).toBeGreaterThanOrEqual(3);
         expect(lines[lines.length - 1]).toBe('data: [DONE]');
 
-        // First chunks should contain valid JSON with chunk field
-        const firstLine = lines[0].replace('data: ', '');
-        const parsed = JSON.parse(firstLine);
-        expect(parsed).toHaveProperty('chunk');
+        // First event should be sessionId (Phase 6 change)
+        const firstEvent = JSON.parse(lines[0].replace('data: ', ''));
+        expect(firstEvent).toHaveProperty('sessionId');
+        expect(firstEvent.sessionId).toMatch(/^[a-f0-9]{24}$/);
+
+        // Subsequent events should contain chunk data
+        const chunkLine = lines.find(l => {
+            try {
+                const parsed = JSON.parse(l.replace('data: ', ''));
+                return parsed.chunk;
+            } catch { return false; }
+        });
+        expect(chunkLine).toBeDefined();
+        const parsed = JSON.parse(chunkLine.replace('data: ', ''));
         expect(typeof parsed.chunk).toBe('string');
     });
 });

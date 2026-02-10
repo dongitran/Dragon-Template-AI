@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Select } from 'antd';
-import { RocketOutlined } from '@ant-design/icons';
 import ChatMessage from '../components/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import TypingIndicator from '../components/TypingIndicator';
@@ -9,17 +9,40 @@ import './chat.css';
 const API_BASE = import.meta.env.VITE_API_URL;
 
 function ChatPage() {
+    const { sessionId: urlSessionId } = useParams();
+    const navigate = useNavigate();
+
     const [messages, setMessages] = useState([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [providers, setProviders] = useState([]);
     const [selectedModel, setSelectedModel] = useState('');
+    const [sessionId, setSessionId] = useState(urlSessionId || null);
+    const [sessionTitle, setSessionTitle] = useState('New Chat');
     const messagesEndRef = useRef(null);
     const abortControllerRef = useRef(null);
+    const isStreamingRef = useRef(false);
 
     // Fetch available models on mount
     useEffect(() => {
         fetchModels();
     }, []);
+
+    // Load session when URL changes
+    useEffect(() => {
+        if (urlSessionId) {
+            setSessionId(urlSessionId);
+            // Don't reload session from server if we're actively streaming
+            // (navigate() during streaming would wipe the in-memory messages)
+            if (!isStreamingRef.current) {
+                loadSession(urlSessionId);
+            }
+        } else {
+            // New chat
+            setSessionId(null);
+            setMessages([]);
+            setSessionTitle('New Chat');
+        }
+    }, [urlSessionId]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -48,11 +71,32 @@ function ChatPage() {
         }
     };
 
+    const loadSession = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/sessions/${id}`, {
+                credentials: 'include',
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setMessages(data.messages || []);
+                setSessionTitle(data.title || 'New Chat');
+                if (data.model) setSelectedModel(data.model);
+            } else {
+                // Session not found — redirect to new chat
+                console.error('Session not found');
+                navigate('/', { replace: true });
+            }
+        } catch (err) {
+            console.error('Failed to load session:', err);
+        }
+    };
+
     const handleSend = useCallback(async (text) => {
         const userMessage = { role: 'user', content: text };
         const updatedMessages = [...messages, userMessage];
         setMessages(updatedMessages);
         setIsStreaming(true);
+        isStreamingRef.current = true;
 
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -102,6 +146,7 @@ function ChatPage() {
                 body: JSON.stringify({
                     messages: updatedMessages,
                     model: selectedModel,
+                    sessionId: sessionId || undefined,
                 }),
                 signal: controller.signal,
             });
@@ -137,6 +182,15 @@ function ChatPage() {
 
                     try {
                         const parsed = JSON.parse(data);
+
+                        // Handle sessionId event (first event from backend)
+                        if (parsed.sessionId) {
+                            setSessionId(parsed.sessionId);
+                            // Update URL without reload
+                            navigate(`/chat/${parsed.sessionId}`, { replace: true });
+                            continue;
+                        }
+
                         if (parsed.error) {
                             charQueue += `\n\n**Error:** ${parsed.error}`;
                         } else if (parsed.chunk) {
@@ -165,6 +219,24 @@ function ChatPage() {
                 };
                 return updated;
             });
+
+            // Refresh session title in case it was auto-generated
+            // Use a callback to get the latest sessionId from state
+            setTimeout(() => {
+                setSessionId(currentSid => {
+                    if (currentSid) {
+                        fetch(`${API_BASE}/api/sessions/${currentSid}`, { credentials: 'include' })
+                            .then(r => r.ok ? r.json() : null)
+                            .then(data => {
+                                if (data?.title && data.title !== 'New Chat') {
+                                    setSessionTitle(data.title);
+                                }
+                            })
+                            .catch(() => { });
+                    }
+                    return currentSid; // Don't change the state
+                });
+            }, 3000); // Wait 3s for title generation
         } catch (err) {
             stopTyping();
             if (err.name === 'AbortError') {
@@ -186,9 +258,10 @@ function ChatPage() {
             }
         } finally {
             setIsStreaming(false);
+            isStreamingRef.current = false;
             abortControllerRef.current = null;
         }
-    }, [messages, selectedModel]);
+    }, [messages, selectedModel, sessionId, navigate, urlSessionId]);
 
     const handleStop = useCallback(() => {
         abortControllerRef.current?.abort();
@@ -206,8 +279,6 @@ function ChatPage() {
 
     return (
         <div className="chat-container">
-            {/* Header removed */}
-
             {/* Messages area */}
             <div className="chat-messages">
                 <div className="chat-messages-inner">
@@ -226,9 +297,15 @@ function ChatPage() {
                                 if (isLastEmpty) return null;
                                 return <ChatMessage key={i} message={msg} />;
                             })}
-                            {isStreaming && messages[messages.length - 1]?.content === '' && (
-                                <TypingIndicator />
-                            )}
+                            {isStreaming && (
+                                // Show typing indicator when:
+                                // 1. No assistant message yet (waiting for fetch response)
+                                // 2. Empty assistant message exists (waiting for first chunk)
+                                messages[messages.length - 1]?.role !== 'assistant' ||
+                                messages[messages.length - 1]?.content === ''
+                            ) && (
+                                    <TypingIndicator />
+                                )}
                         </>
                     )}
                     <div ref={messagesEndRef} />

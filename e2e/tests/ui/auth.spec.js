@@ -223,3 +223,31 @@ test.describe('Authenticated Session', () => {
     });
 });
 
+test.describe('Auth Redirect — Authenticated Users', () => {
+    test.beforeEach(async ({ page }) => {
+        // Login first
+        await page.goto('/login');
+        await page.getByPlaceholder('Username').fill('testuser');
+        await page.getByPlaceholder('Password').fill('testpass123');
+        await page.getByRole('button', { name: /sign in/i }).click();
+        await expect(page).toHaveURL('/', { timeout: 10000 });
+    });
+
+    test('should redirect from /login to / when already authenticated', async ({ page }) => {
+        // Navigate to login page while authenticated
+        await page.goto('/login');
+
+        // Should be redirected back to home
+        await expect(page).toHaveURL('/', { timeout: 5000 });
+        await expect(page.getByText('Welcome to Dragon Template')).toBeVisible();
+    });
+
+    test('should redirect from /register to / when already authenticated', async ({ page }) => {
+        // Navigate to register page while authenticated
+        await page.goto('/register');
+
+        // Should be redirected back to home
+        await expect(page).toHaveURL('/', { timeout: 5000 });
+        await expect(page.getByText('Welcome to Dragon Template')).toBeVisible();
+    });
+});

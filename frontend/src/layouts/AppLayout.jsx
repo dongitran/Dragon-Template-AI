@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ChatSidebar from '../components/ChatSidebar';
 import './AppLayout.css';
 
 const { Header, Sider, Content } = Layout;
@@ -30,6 +31,12 @@ function AppLayout({ children }) {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuth();
+
+    // Extract sessionId from URL if on chat page
+    const isChatPage = location.pathname === '/' || location.pathname.startsWith('/chat/');
+    const currentSessionId = location.pathname.startsWith('/chat/')
+        ? location.pathname.split('/chat/')[1]
+        : null;
 
     const handleLogout = async () => {
         await logout();
@@ -55,6 +62,9 @@ function AppLayout({ children }) {
 
     const avatarLetter = user?.displayName?.[0] || user?.email?.[0] || 'U';
 
+    // Determine active menu key — chat pages map to '/'
+    const selectedKey = isChatPage ? '/' : location.pathname;
+
     return (
         <Layout className="app-layout">
             <Sider
@@ -69,10 +79,16 @@ function AppLayout({ children }) {
                     {!collapsed && <span className="app-logo-text">Dragon Template</span>}
                 </div>
 
+                {!collapsed && (
+                    <ChatSidebar
+                        currentSessionId={currentSessionId}
+                    />
+                )}
+
                 <Menu
                     theme="dark"
                     mode="inline"
-                    selectedKeys={[location.pathname]}
+                    selectedKeys={[selectedKey]}
                     items={menuItems}
                     onClick={({ key }) => navigate(key)}
                     className="app-menu"
@@ -106,3 +122,4 @@ function AppLayout({ children }) {
 }
 
 export default AppLayout;
+
