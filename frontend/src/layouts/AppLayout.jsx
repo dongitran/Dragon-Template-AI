@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Typography, Avatar, Space } from 'antd';
+import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
 import {
     MessageOutlined,
     FileTextOutlined,
@@ -8,12 +8,14 @@ import {
     SettingOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
+    LogoutOutlined,
+    UserOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './AppLayout.css';
 
 const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
 
 const menuItems = [
     { key: '/', icon: <MessageOutlined />, label: 'Chat' },
@@ -27,6 +29,31 @@ function AppLayout({ children }) {
     const [collapsed, setCollapsed] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, logout } = useAuth();
+
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
+
+    const userMenuItems = [
+        {
+            key: 'profile',
+            icon: <UserOutlined />,
+            label: user?.displayName || user?.email || 'User',
+            disabled: true,
+        },
+        { type: 'divider' },
+        {
+            key: 'logout',
+            icon: <LogoutOutlined />,
+            label: 'Logout',
+            danger: true,
+            onClick: handleLogout,
+        },
+    ];
+
+    const avatarLetter = user?.displayName?.[0] || user?.email?.[0] || 'U';
 
     return (
         <Layout className="app-layout">
@@ -61,9 +88,13 @@ function AppLayout({ children }) {
                             <MenuFoldOutlined className="app-trigger" onClick={() => setCollapsed(true)} />
                         )}
                     </Space>
-                    <Space>
-                        <Avatar style={{ backgroundColor: '#6C5CE7' }}>U</Avatar>
-                    </Space>
+                    <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                        <Avatar
+                            style={{ backgroundColor: '#6C5CE7', cursor: 'pointer' }}
+                        >
+                            {avatarLetter.toUpperCase()}
+                        </Avatar>
+                    </Dropdown>
                 </Header>
 
                 <Content className="app-content">

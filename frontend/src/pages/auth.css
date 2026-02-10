@@ -1,0 +1,79 @@
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-background {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(108, 92, 231, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(108, 92, 231, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(108, 92, 231, 0.08) 0%, transparent 50%);
+    animation: authBgPulse 8s ease-in-out infinite alternate;
+}
+
+@keyframes authBgPulse {
+    0% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(30, 30, 46, 0.85) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(108, 92, 231, 0.2) !important;
+    border-radius: 16px !important;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(108, 92, 231, 0.1) !important;
+    z-index: 1;
+}
+
+.auth-header {
+    text-align: center;
+    padding-bottom: 8px;
+}
+
+.auth-logo {
+    font-size: 48px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 12px rgba(108, 92, 231, 0.4));
+}
+
+.auth-footer {
+    text-align: center;
+}
+
+.auth-footer a {
+    color: #6C5CE7 !important;
+    font-weight: 500;
+}
+
+.auth-footer a:hover {
+    color: #8B7CF7 !important;
+    text-decoration: underline;
+}
+
+/* Override Ant Design input styles for auth pages */
+.auth-card .ant-input-affix-wrapper,
+.auth-card .ant-input {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.auth-card .ant-input-affix-wrapper:hover,
+.auth-card .ant-input:hover {
+    border-color: rgba(108, 92, 231, 0.4) !important;
+}
+
+.auth-card .ant-input-affix-wrapper-focused,
+.auth-card .ant-input:focus {
+    border-color: #6C5CE7 !important;
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2) !important;
+}

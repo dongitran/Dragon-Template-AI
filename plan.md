@@ -71,24 +71,24 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 4: Authentication with Keycloak
+## Phase 4: Authentication with Keycloak ✅
 
 **Goal:** Implement full authentication flow with a custom login page, Keycloak as identity provider, and user sync to MongoDB.
 
-- [ ] Configure Keycloak realm, client, and roles (via admin console or realm export JSON)
-- [ ] Backend: JWT token validation middleware (verify Keycloak-issued tokens)
-- [ ] Backend: MongoDB `users` collection (keycloakId, email, displayName, avatar, preferences, lastLoginAt)
-- [ ] Backend: User sync — on first login, create user record in MongoDB; on subsequent logins, update `lastLoginAt`
-- [ ] Backend: REST API endpoints:
+- [x] Configure Keycloak realm, client, and roles (via admin console or realm export JSON)
+- [x] Backend: JWT token validation middleware (verify Keycloak-issued tokens)
+- [x] Backend: MongoDB `users` collection (keycloakId, email, displayName, avatar, preferences, lastLoginAt)
+- [x] Backend: User sync — on first login, create user record in MongoDB; on subsequent logins, update `lastLoginAt`
+- [x] Backend: REST API endpoints:
   - `POST /api/auth/login` — proxy to Keycloak token endpoint
   - `POST /api/auth/register` — proxy to Keycloak registration
   - `POST /api/auth/refresh` — refresh access token
   - `GET /api/auth/me` — return current user profile from MongoDB
-- [ ] Frontend: Custom Login page (email/password form, modern design)
-- [ ] Frontend: Custom Register page
-- [ ] Frontend: Protected routes — redirect unauthenticated users to login page
-- [ ] Frontend: Token storage, auto-refresh, and session expiration handling
-- [ ] Write tests for auth middleware and user sync
+- [x] Frontend: Custom Login page (email/password form, modern design)
+- [x] Frontend: Custom Register page
+- [x] Frontend: Protected routes — redirect unauthenticated users to login page
+- [x] Frontend: Token storage, auto-refresh, and session expiration handling
+- [x] Write tests for auth middleware and user sync
 
 **Deliverable:** Users can register and log in via a custom-designed login page, with user data synced to MongoDB.
 

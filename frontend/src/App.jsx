@@ -1,6 +1,6 @@
 import { BrowserRouter } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
-import AppLayout from './layouts/AppLayout';
+import { AuthProvider } from './contexts/AuthContext';
 import AppRoutes from './routes';
 import './styles/global.css';
 
@@ -17,9 +17,9 @@ function App() {
   return (
     <ConfigProvider theme={themeConfig}>
       <BrowserRouter>
-        <AppLayout>
+        <AuthProvider>
           <AppRoutes />
-        </AppLayout>
+        </AuthProvider>
       </BrowserRouter>
     </ConfigProvider>
   );
