@@ -25,26 +25,26 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 2: Unit Testing & CI/CD Pipeline
+## Phase 2: Unit Testing & CI/CD Pipeline ✅
 
 **Goal:** Set up unit testing for both frontend and backend, and create a CI pipeline with GitHub Actions.
 
-- [ ] Backend: Set up Jest testing framework
+- [x] Backend: Set up Jest testing framework
   - Install `jest`, `supertest` for API testing
   - Configure `jest.config.js`
   - Write unit tests for health endpoint
   - Write test utilities and helpers
-- [ ] Frontend: Set up Vitest testing framework
+- [x] Frontend: Set up Vitest testing framework
   - Install `vitest`, `@testing-library/react`, `@testing-library/jest-dom`
   - Configure Vitest in `vite.config.js`
   - Write unit tests for App component
   - Write test utilities and helpers
-- [ ] GitHub Actions CI pipeline:
+- [x] GitHub Actions CI pipeline:
   - Create `.github/workflows/ci.yml`
   - Run backend tests on push/PR
   - Run frontend tests on push/PR
   - Build Docker images to verify builds pass
-- [ ] Verify CI pipeline runs successfully on push
+- [x] Verify CI pipeline runs successfully on push
 
 **Deliverable:** Both projects have unit tests with a green CI pipeline on GitHub Actions.
 
