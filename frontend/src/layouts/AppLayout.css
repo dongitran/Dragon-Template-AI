@@ -1,0 +1,67 @@
+.app-layout {
+    min-height: 100vh;
+}
+
+.app-sider {
+    background: #141414 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-sider .ant-layout-sider-children {
+    display: flex;
+    flex-direction: column;
+}
+
+.app-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px;
+    height: 64px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-logo-icon {
+    font-size: 24px;
+}
+
+.app-logo-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.app-menu {
+    flex: 1;
+    border-right: none !important;
+    background: transparent !important;
+    padding-top: 8px;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: #141414 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    height: 64px;
+}
+
+.app-trigger {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.app-trigger:hover {
+    color: #6C5CE7;
+}
+
+.app-content {
+    padding: 24px;
+    background: #0a0a0a;
+    min-height: calc(100vh - 64px);
+}

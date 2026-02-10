@@ -32,6 +32,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: dev
     container_name: dragon-backend
     ports:
       - "3001:3001"
@@ -49,6 +50,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
     container_name: dragon-frontend
     ports:
       - "5173:5173"

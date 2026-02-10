@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
+import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 
 describe('App', () => {
@@ -7,11 +8,8 @@ describe('App', () => {
         render(<App />);
     });
 
-    it('should render the Vite and React logos', () => {
+    it('should render the Dragon AI logo text', () => {
         render(<App />);
-        const viteLogo = screen.getByAltText('Vite logo');
-        const reactLogo = screen.getByAltText('React logo');
-        expect(viteLogo).toBeInTheDocument();
-        expect(reactLogo).toBeInTheDocument();
+        expect(screen.getByText('Dragon AI')).toBeInTheDocument();
     });
 });
