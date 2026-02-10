@@ -501,6 +501,7 @@ GCP Project: fair-backbone-479312-h7
 ├── IAM: dragon-deployer SA + WIF (GitHub Actions OIDC)
 └── VPC: dragon-network (custom, no auto-subnets)
     ├── Firewall: allow-mongodb-nodeport (tcp:30017)
+    ├── Firewall: allow-keycloak-nodeport (tcp:30080)
     └── Subnet: dragon-subnet (10.0.0.0/24)
         ├── Secondary Range "pods": 10.1.0.0/16
         └── Secondary Range "services": 10.2.0.0/20
@@ -512,7 +513,11 @@ GCP Project: fair-backbone-479312-h7
                             ├── StatefulSet: mongodb (mongo:7, 1/1 Running)
                             ├── Service: mongodb (NodePort 30017)
                             ├── PVC: mongodb-data (3GB pd-standard)
-                            └── Secret: mongodb-secret
+                            ├── Secret: mongodb-secret
+                            ├── Deployment: keycloak (keycloak:24.0, 1/1 Running)
+                            ├── Service: keycloak (NodePort 30080)
+                            ├── PVC: keycloak-data (1GB pd-standard)
+                            └── Secret: keycloak-secret
 ```
 
 ### Bao mat
@@ -837,6 +842,101 @@ mongosh "mongodb://dragon_db_admin:***@34.158.41.47:30017/dragon-template-ai?aut
 
 ---
 
+### Step 22: Deploy Keycloak len GKE
+**Muc dich**: Deploy Keycloak (IAM/SSO) len GKE cluster, co public access qua NodePort.
+
+**22a. Tao folder va files K8s:**
+```
+infra/gke/keycloak/
+├── deployment.yaml     # Keycloak Deployment (keycloak:24.0, start-dev)
+├── pvc.yaml            # PersistentVolumeClaim 1GB pd-standard
+└── service.yaml        # NodePort Service (8080 -> 30080)
+```
+
+**Quyet dinh thiet ke:**
+| Quyet dinh | Ly do |
+|---|---|
+| Deployment (khong phai StatefulSet) | Keycloak la app server, khong phai database |
+| `start-dev` mode | Moi truong dev, don gian, dung H2 embedded DB |
+| NodePort 30080 | Mien phi ($0), tuong tu MongoDB |
+| 1GB PVC | Chi chua H2 embedded database |
+| `strategy: Recreate` | Chi 1 replica, tranh conflict khi update |
+
+**22b. Cau hinh deployment:**
+- Image: `quay.io/keycloak/keycloak:24.0`
+- Args: `["start-dev"]` (KHONG dung `command` - se ghi de ENTRYPOINT)
+- Env: `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD` (tu K8s Secret), `KC_HEALTH_ENABLED=true`
+- Resources: CPU request 100m/limit 500m, Memory request 512Mi/limit 1Gi
+- securityContext: `fsGroup: 1000` (Keycloak chay non-root uid 1000)
+- Liveness probe: HTTP `/health/live`, initialDelaySeconds **300s** (start-dev build cham)
+- Readiness probe: HTTP `/health/ready`, initialDelaySeconds 30s
+
+**22c. Secret management:**
+```bash
+gh secret set KEYCLOAK_ADMIN --body "admin"
+gh secret set KEYCLOAK_ADMIN_PASSWORD --body "***"
+```
+- Tuong tu MongoDB: K8s Secret tao bang `kubectl create secret` trong GitHub Actions
+- Credentials luu trong `secret.md` (gitignored)
+
+**22d. Firewall rule:**
+```bash
+gcloud compute firewall-rules create allow-keycloak-nodeport \
+  --network=dragon-network-1304a1a \
+  --allow=tcp:30080 \
+  --target-tags=gke-dragon-gke-eeb4b472-node \
+  --source-ranges=0.0.0.0/0 \
+  --description="Allow Keycloak NodePort 30080"
+```
+
+**22e. Them job `deploy-keycloak` vao `deploy-gke.yml`:**
+- Tuong tu `deploy-mongodb`: auth GCP, get GKE creds, create secret, deploy, wait, show status
+- Timeout: **600s** (Keycloak start-dev build Quarkus mat ~95s + startup ~60s)
+
+**22f. Troubleshooting (3 loi):**
+
+**Loi 1: `executable file not found in $PATH` - CrashLoopBackOff**
+```
+exec: "start-dev": executable file not found in $PATH
+```
+- **Nguyen nhan**: Dung `command: ["start-dev"]` ghi de ENTRYPOINT cua container (`/opt/keycloak/bin/kc.sh`)
+- **Fix**: Doi sang `args: ["start-dev"]` (giu ENTRYPOINT, chi thay doi arguments)
+
+**Loi 2: `Error while creating file "/opt/keycloak/data/h2"` - Exit Code 1**
+```
+ERROR: Failed to obtain JDBC connection
+ERROR: Error while creating file "/opt/keycloak/data/h2"
+```
+- **Nguyen nhan**: PVC mount tai `/opt/keycloak/data` owned by root, nhung Keycloak chay non-root (uid 1000)
+- **Fix**: Them `securityContext.fsGroup: 1000` de volume writable boi Keycloak user
+
+**Loi 3: Liveness probe killed container - Exit Code 143 (SIGTERM)**
+```
+Warning  Unhealthy  Liveness probe failed: HTTP probe failed with statuscode: 404
+Warning  Killing    Container keycloak failed liveness probe, will be restarted
+```
+- **Nguyen nhan 1**: Health endpoint tra 404 vi chua enable. Keycloak 24.0 can `KC_HEALTH_ENABLED=true`
+- **Nguyen nhan 2**: `start-dev` mode build Quarkus mat ~95s + startup ~60s = ~155s, vuot qua liveness delay 180s + 3 failures
+- **Fix**: Them env `KC_HEALTH_ENABLED=true`, tang liveness `initialDelaySeconds` tu 180s len **300s**, tang memory limit tu 768Mi len **1Gi**
+
+**22g. Ket qua thanh cong:**
+```bash
+kubectl get pods -n dragon
+# NAME                        READY   STATUS    RESTARTS   AGE
+# keycloak-65bc679f74-vqvr5   1/1     Running   0          4m8s
+# mongodb-0                   1/1     Running   0          14m
+
+# Keycloak logs:
+# Keycloak 24.0.5 on JVM (powered by Quarkus 3.8.4) started in 61.074s
+# Listening on: http://0.0.0.0:8080
+# Profile dev activated.
+```
+
+**Ket qua**: Keycloak accessible tu public internet qua NodePort 30080.
+- URL: `http://34.158.41.47:30080` hoac `http://34.87.99.143:30080`
+
+---
+
 ## Ket qua cuoi cung (Updated)
 
 ### MongoDB on GKE
@@ -851,6 +951,19 @@ mongosh "mongodb://dragon_db_admin:***@34.158.41.47:30017/dragon-template-ai?aut
 | CPU | request 100m, limit 500m |
 | Memory | request 256Mi, limit 512Mi |
 
+### Keycloak on GKE
+| Property | Value |
+|----------|-------|
+| Pod | keycloak-* (Deployment) |
+| Image | quay.io/keycloak/keycloak:24.0 |
+| Mode | start-dev (H2 embedded DB) |
+| Namespace | dragon |
+| PVC | 1GB pd-standard |
+| Service | NodePort 30080 |
+| Admin Console | http://34.158.41.47:30080 |
+| CPU | request 100m, limit 500m |
+| Memory | request 512Mi, limit 1Gi |
+
 ### CI/CD Pipeline
 | Component | Value |
 |----------|-------|
@@ -859,7 +972,7 @@ mongosh "mongodb://dragon_db_admin:***@34.158.41.47:30017/dragon-template-ai?aut
 | Service Account | dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com |
 | WIF Pool | dragon-github-pool |
 | WIF Provider | dragon-github-provider |
-| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD |
+| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD, KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD |
 
 ---
 
@@ -872,6 +985,10 @@ mongosh "mongodb://dragon_db_admin:***@34.158.41.47:30017/dragon-template-ai?aut
 | 11 | Firewall rule sai network | Tao tren `default` thay vi `dragon-network-1304a1a` | Xoa va tao lai voi `--network=dragon-network-1304a1a` |
 | 12 | WIF Provider thieu attribute condition | GCP yeu cau bat buoc | Them `--attribute-condition` |
 | 13 | GitHub Actions "Wait for MongoDB" timeout | Pod Pending vi CPU + probe issues | Fix CPU request va probe timeout, re-trigger |
+| 14 | Keycloak `start-dev` not found | `command` ghi de ENTRYPOINT | Doi sang `args: ["start-dev"]` |
+| 15 | Keycloak PVC permission denied | PVC owned by root, Keycloak chay uid 1000 | Them `securityContext.fsGroup: 1000` |
+| 16 | Keycloak health endpoint 404 | Chua enable health check | Them `KC_HEALTH_ENABLED=true` |
+| 17 | Keycloak liveness probe killed | start-dev build cham (~155s) vuot qua delay 180s | Tang `initialDelaySeconds` len 300s, memory len 1Gi |
 
 ---
 
