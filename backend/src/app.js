@@ -3,10 +3,20 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const morgan = require('morgan');
 
 const authRoutes = require('./routes/auth');
 
 const app = express();
+
+// Security headers
+app.use(helmet());
+
+// Request logging (skip in test to keep output clean)
+if (process.env.NODE_ENV !== 'test') {
+    app.use(morgan('dev'));
+}
 
 // Middleware
 app.use(cors({
@@ -49,7 +59,6 @@ const registerLimiter = rateLimit({
 });
 app.use('/api/auth/register', registerLimiter);
 
-
 // Routes
 app.use('/api/auth', authRoutes);
 
@@ -60,6 +69,17 @@ app.get('/api/health', (req, res) => {
         service: 'dragon-backend',
         timestamp: new Date().toISOString(),
         mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    });
+});
+
+// Global error handler — always returns JSON, hides details in production
+app.use((err, req, res, next) => {
+    const status = err.status || 500;
+    console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+    if (!isProduction) console.error(err.stack);
+
+    res.status(status).json({
+        error: isProduction ? 'Internal server error' : err.message,
     });
 });
 

@@ -57,14 +57,14 @@ describe('setAuthCookies', () => {
         expect(mockRes.cookie).toHaveBeenCalledWith('access_token', 'at-123', {
             httpOnly: true,
             secure: false,
-            sameSite: 'lax',
+            sameSite: 'strict',
             maxAge: 300000,
         });
 
         expect(mockRes.cookie).toHaveBeenCalledWith('refresh_token', 'rt-456', {
             httpOnly: true,
             secure: false,
-            sameSite: 'lax',
+            sameSite: 'strict',
             maxAge: 30 * 24 * 60 * 60 * 1000,
         });
     });

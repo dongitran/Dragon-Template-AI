@@ -20,6 +20,16 @@ jest.mock('jsonwebtoken', () => {
     };
 });
 
+// Mock keycloak utils (used by auto-refresh)
+jest.mock('../../src/utils/keycloak', () => ({
+    requestToken: jest.fn(),
+}));
+
+// Mock response utils (used by auto-refresh)
+jest.mock('../../src/utils/response', () => ({
+    setAuthCookies: jest.fn(),
+}));
+
 const authMiddleware = require('../../src/middleware/auth');
 
 describe('Auth Middleware', () => {
@@ -38,41 +48,41 @@ describe('Auth Middleware', () => {
         jwt.verify.mockReset();
     });
 
-    it('should return 401 when no token is provided', () => {
-        authMiddleware(req, res, next);
+    it('should return 401 when no token is provided', async () => {
+        await authMiddleware(req, res, next);
 
         expect(res.status).toHaveBeenCalledWith(401);
         expect(res.json).toHaveBeenCalledWith({ error: 'No token provided' });
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('should extract token from Authorization header', () => {
+    it('should extract token from Authorization header', async () => {
         req.headers.authorization = 'Bearer valid-token';
 
         jwt.verify.mockImplementation((token, getKey, options, callback) => {
             callback(null, { sub: 'user-123', email: 'test@example.com' });
         });
 
-        authMiddleware(req, res, next);
+        await authMiddleware(req, res, next);
 
         expect(jwt.verify).toHaveBeenCalled();
         expect(jwt.verify.mock.calls[0][0]).toBe('valid-token');
     });
 
-    it('should extract token from cookie when no Authorization header', () => {
+    it('should extract token from cookie when no Authorization header', async () => {
         req.cookies.access_token = 'cookie-token';
 
         jwt.verify.mockImplementation((token, getKey, options, callback) => {
             callback(null, { sub: 'user-123' });
         });
 
-        authMiddleware(req, res, next);
+        await authMiddleware(req, res, next);
 
         expect(jwt.verify).toHaveBeenCalled();
         expect(jwt.verify.mock.calls[0][0]).toBe('cookie-token');
     });
 
-    it('should call next and set req.user on valid token', () => {
+    it('should call next and set req.user on valid token', async () => {
         req.headers.authorization = 'Bearer valid-token';
         const decodedUser = { sub: 'user-123', email: 'test@example.com' };
 
@@ -80,27 +90,27 @@ describe('Auth Middleware', () => {
             callback(null, decodedUser);
         });
 
-        authMiddleware(req, res, next);
+        await authMiddleware(req, res, next);
 
         expect(next).toHaveBeenCalled();
         expect(req.user).toEqual(decodedUser);
     });
 
-    it('should return 401 on invalid token', () => {
+    it('should return 401 on invalid token', async () => {
         req.headers.authorization = 'Bearer invalid-token';
 
         jwt.verify.mockImplementation((token, getKey, options, callback) => {
             callback(new Error('invalid token'));
         });
 
-        authMiddleware(req, res, next);
+        await authMiddleware(req, res, next);
 
         expect(res.status).toHaveBeenCalledWith(401);
         expect(res.json).toHaveBeenCalledWith({ error: 'Invalid or expired token' });
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('should prefer Authorization header over cookie', () => {
+    it('should prefer Authorization header over cookie', async () => {
         req.headers.authorization = 'Bearer header-token';
         req.cookies.access_token = 'cookie-token';
 
@@ -108,8 +118,48 @@ describe('Auth Middleware', () => {
             callback(null, { sub: 'user-123' });
         });
 
-        authMiddleware(req, res, next);
+        await authMiddleware(req, res, next);
 
         expect(jwt.verify.mock.calls[0][0]).toBe('header-token');
     });
+
+    it('should auto-refresh expired token when refresh_token cookie exists', async () => {
+        const { requestToken } = require('../../src/utils/keycloak');
+        const { setAuthCookies } = require('../../src/utils/response');
+
+        req.cookies.access_token = 'expired-token';
+        req.cookies.refresh_token = 'valid-refresh';
+
+        const expiredError = new Error('jwt expired');
+        expiredError.name = 'TokenExpiredError';
+
+        let callCount = 0;
+        jwt.verify.mockImplementation((token, getKey, options, callback) => {
+            callCount++;
+            if (callCount === 1) {
+                // First call: expired token
+                callback(expiredError);
+            } else {
+                // Second call: new token valid
+                callback(null, { sub: 'user-123' });
+            }
+        });
+
+        requestToken.mockResolvedValue({
+            access_token: 'new-at',
+            refresh_token: 'new-rt',
+            expires_in: 300,
+        });
+
+        await authMiddleware(req, res, next);
+
+        expect(requestToken).toHaveBeenCalledWith({
+            grant_type: 'refresh_token',
+            refresh_token: 'valid-refresh',
+        });
+        expect(setAuthCookies).toHaveBeenCalled();
+        expect(next).toHaveBeenCalled();
+        expect(req.user).toEqual({ sub: 'user-123' });
+    });
 });
+
