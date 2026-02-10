@@ -84,7 +84,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                                 onClick={handleSubmit}
                                 title="Send message"
                             >
-                                <SendOutlined />
+                                <div className="chat-send-icon">⏹</div>
                             </button>
                         )}
                     </div>

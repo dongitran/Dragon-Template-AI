@@ -396,6 +396,11 @@
     background: #c0392b;
 }
 
+.chat-send-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
 /* Animations */
 @keyframes slideIn {
     from {
