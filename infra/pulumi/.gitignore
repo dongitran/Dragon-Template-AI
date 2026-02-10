@@ -1,0 +1,17 @@
+/bin/
+/node_modules/
+
+# Pulumi local state (contains secrets, stack state)
+/.pulumi/
+
+# Pulumi stack config may contain sensitive values
+# Keep Pulumi.yaml (project def) but ignore stack configs with secrets
+# If you need to share stack config, use `pulumi config set --secret` for sensitive values
+
+# Environment files
+.env
+.env.*
+
+# Kubeconfig files
+kubeconfig*
+*.kubeconfig
