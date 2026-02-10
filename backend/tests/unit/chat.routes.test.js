@@ -314,5 +314,38 @@ describe('Chat Routes', () => {
 
             consoleSpy.mockRestore();
         });
+
+        it('should stop writing when client disconnects mid-stream', async () => {
+            let closeCallback;
+
+            mockStreamChat.mockImplementation(async function* () {
+                yield 'chunk-1 ';
+                // Simulate client disconnect after first chunk
+                closeCallback();
+                yield 'chunk-2 ';
+                yield 'chunk-3 ';
+            });
+
+            const { req, res } = createMockReqRes({
+                messages: [{ role: 'user', content: 'hello' }],
+            });
+
+            // Capture the 'close' event listener
+            req.on.mockImplementation((event, cb) => {
+                if (event === 'close') closeCallback = cb;
+            });
+
+            await postChatHandler(req, res);
+
+            const written = res._getWritten();
+            const events = parseSSEEvents(written);
+
+            // Should have written chunk-1 but stopped after disconnect
+            expect(events.some(e => e !== '[DONE]' && JSON.parse(e).chunk === 'chunk-1 ')).toBe(true);
+
+            // Should NOT have written [DONE] or called res.end() after disconnect
+            expect(events.includes('[DONE]')).toBe(false);
+            expect(res.end).not.toHaveBeenCalled();
+        });
     });
 });
