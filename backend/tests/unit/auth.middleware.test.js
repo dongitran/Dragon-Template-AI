@@ -22,7 +22,7 @@ jest.mock('jsonwebtoken', () => {
 
 // Mock keycloak utils (used by auto-refresh)
 jest.mock('../../src/utils/keycloak', () => ({
-    requestToken: jest.fn(),
+    requestKeycloakToken: jest.fn(),
 }));
 
 // Mock response utils (used by auto-refresh)
@@ -124,7 +124,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should auto-refresh expired token when refresh_token cookie exists', async () => {
-        const { requestToken } = require('../../src/utils/keycloak');
+        const { requestKeycloakToken } = require('../../src/utils/keycloak');
         const { setAuthCookies } = require('../../src/utils/response');
 
         req.cookies.access_token = 'expired-token';
@@ -145,7 +145,7 @@ describe('Auth Middleware', () => {
             }
         });
 
-        requestToken.mockResolvedValue({
+        requestKeycloakToken.mockResolvedValue({
             access_token: 'new-at',
             refresh_token: 'new-rt',
             expires_in: 300,
@@ -153,13 +153,69 @@ describe('Auth Middleware', () => {
 
         await authMiddleware(req, res, next);
 
-        expect(requestToken).toHaveBeenCalledWith({
+        expect(requestKeycloakToken).toHaveBeenCalledWith({
             grant_type: 'refresh_token',
             refresh_token: 'valid-refresh',
         });
         expect(setAuthCookies).toHaveBeenCalled();
         expect(next).toHaveBeenCalled();
         expect(req.user).toEqual({ sub: 'user-123' });
+    });
+
+    it('should auto-refresh when access_token cookie is absent but refresh_token exists', async () => {
+        const { requestKeycloakToken } = require('../../src/utils/keycloak');
+        const { setAuthCookies } = require('../../src/utils/response');
+
+        // access_token cookie expired and was removed by the browser;
+        // only refresh_token (30-day maxAge) remains.
+        req.cookies = {
+            refresh_token: 'valid-refresh',
+        };
+
+        requestKeycloakToken.mockResolvedValue({
+            access_token: 'new-at',
+            refresh_token: 'new-rt',
+            expires_in: 300,
+        });
+
+        jwt.verify.mockImplementation((token, getKey, options, callback) => {
+            callback(null, { sub: 'user-123' });
+        });
+
+        await authMiddleware(req, res, next);
+
+        expect(requestKeycloakToken).toHaveBeenCalledWith({
+            grant_type: 'refresh_token',
+            refresh_token: 'valid-refresh',
+        });
+        expect(setAuthCookies).toHaveBeenCalled();
+        expect(next).toHaveBeenCalled();
+        expect(req.user).toEqual({ sub: 'user-123' });
+    });
+
+    it('should return 401 when access_token is absent and refresh_token is invalid', async () => {
+        const { requestKeycloakToken } = require('../../src/utils/keycloak');
+
+        req.cookies = {
+            refresh_token: 'expired-refresh',
+        };
+
+        requestKeycloakToken.mockRejectedValue(new Error('Token expired'));
+
+        await authMiddleware(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should return 401 when neither access_token nor refresh_token exist', async () => {
+        req.cookies = {};
+
+        await authMiddleware(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith({ error: 'No token provided' });
+        expect(next).not.toHaveBeenCalled();
     });
 });
 

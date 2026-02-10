@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const jwksRsa = require('jwks-rsa');
-const { requestToken } = require('../utils/keycloak');
+const { requestKeycloakToken } = require('../utils/keycloak');
 const { setAuthCookies } = require('../utils/response');
 
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL;
@@ -44,7 +44,7 @@ function verifyToken(token) {
  */
 async function tryRefresh(refreshToken) {
     try {
-        const tokenData = await requestToken({
+        const tokenData = await requestKeycloakToken({
             grant_type: 'refresh_token',
             refresh_token: refreshToken,
         });
@@ -69,6 +69,23 @@ async function authMiddleware(req, res, next) {
         token = authHeader.substring(7);
     } else if (req.cookies && req.cookies.access_token) {
         token = req.cookies.access_token;
+    }
+
+    // No access token, but refresh token exists — try to refresh
+    if (!token && req.cookies?.refresh_token) {
+        const tokenData = await tryRefresh(req.cookies.refresh_token);
+
+        if (tokenData) {
+            setAuthCookies(res, tokenData);
+            try {
+                req.user = await verifyToken(tokenData.access_token);
+                return next();
+            } catch {
+                // New token also invalid — fall through to 401
+            }
+        }
+
+        return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
     if (!token) {

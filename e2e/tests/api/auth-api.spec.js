@@ -9,13 +9,14 @@
  *  4. POST /api/auth/login — should login and return user + set cookies
  *  5. GET /api/auth/me — should reject unauthenticated requests (401)
  *  6. GET /api/auth/me — should return user profile with valid cookie
- *  7. POST /api/auth/refresh — should reject without refresh token (401)
- *  8. POST /api/auth/refresh — should refresh tokens with valid cookie
- *  9. POST /api/auth/logout — should clear auth cookies
- * 10. POST /api/auth/register — should reject missing fields (400)
- * 11. POST /api/auth/register — should reject duplicate username (409)
- * 12. Rate limiting — should include rate limit headers on responses
- * 13. Rate limiting — should reject oversized request body (413)
+ *  7. GET /api/auth/me — should auto-refresh when only refresh_token cookie remains
+ *  8. POST /api/auth/refresh — should reject without refresh token (401)
+ *  9. POST /api/auth/refresh — should refresh tokens with valid cookie
+ * 10. POST /api/auth/logout — should clear auth cookies
+ * 11. POST /api/auth/register — should reject missing fields (400)
+ * 12. POST /api/auth/register — should reject duplicate username (409)
+ * 13. Rate limiting — should include rate limit headers on responses
+ * 14. Rate limiting — should reject oversized request body (413)
  */
 import { test, expect } from '@playwright/test';
 
@@ -104,6 +105,39 @@ test.describe('Auth API — Me', () => {
         expect(body.displayName).toBe('Test User');
         expect(body.lastLoginAt).toBeTruthy();
         expect(body.createdAt).toBeTruthy();
+    });
+
+    test('should return user profile when only refresh_token cookie remains', async ({ playwright }) => {
+        // Login to get cookies
+        const context1 = await playwright.request.newContext();
+        const loginRes = await context1.post(`${API_BASE}/api/auth/login`, {
+            data: { username: 'testuser', password: 'testpass123' },
+        });
+        expect(loginRes.status()).toBe(200);
+
+        // Extract refresh_token from Set-Cookie header
+        const cookies = loginRes.headers()['set-cookie'];
+        const refreshMatch = cookies.match(/refresh_token=([^;]+)/);
+        expect(refreshMatch).toBeTruthy();
+        const refreshToken = refreshMatch[1];
+
+        // Create a new request context with ONLY refresh_token (no access_token)
+        // This simulates a browser after access_token cookie has expired and been removed
+        const context2 = await playwright.request.newContext({
+            extraHTTPHeaders: {
+                'Cookie': `refresh_token=${refreshToken}`,
+            },
+        });
+
+        const meRes = await context2.get(`${API_BASE}/api/auth/me`);
+
+        expect(meRes.status()).toBe(200);
+        const body = await meRes.json();
+        expect(body.email).toBe('test@dragon.ai');
+        expect(body.displayName).toBe('Test User');
+
+        await context1.dispose();
+        await context2.dispose();
     });
 });
 
