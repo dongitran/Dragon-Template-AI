@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dragon-ingress
+  namespace: dragon
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "dragon-ingress-ip"
+    networking.gke.io/managed-certificates: "dragon-cert"
+spec:
+  ingressClassName: gce
+  rules:
+    - host: keycloak.dragon-template.xyz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080

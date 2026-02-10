@@ -54,6 +54,40 @@ jobs:
           kubectl get svc -n dragon
           kubectl get pvc -n dragon
 
+  deploy-ingress:
+    name: Deploy Ingress
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(toJSON(github.event.commits.*.modified), 'infra/gke/ingress/')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/544685971138/locations/global/workloadIdentityPools/dragon-github-pool/providers/dragon-github-provider'
+          service_account: 'dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com'
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: dragon-gke
+          location: asia-southeast1-a
+
+      - name: Create namespace
+        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Ingress
+        run: kubectl apply -f infra/gke/ingress/
+
+      - name: Show Ingress status
+        run: |
+          kubectl get ingress -n dragon
+          kubectl get managedcertificates -n dragon
+
   deploy-keycloak:
     name: Deploy Keycloak
     runs-on: ubuntu-latest
