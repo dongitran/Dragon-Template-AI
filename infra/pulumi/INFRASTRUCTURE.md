@@ -498,14 +498,21 @@ kubectl get pods --all-namespaces
 ### Architecture
 ```
 GCP Project: fair-backbone-479312-h7
+├── IAM: dragon-deployer SA + WIF (GitHub Actions OIDC)
 └── VPC: dragon-network (custom, no auto-subnets)
+    ├── Firewall: allow-mongodb-nodeport (tcp:30017)
     └── Subnet: dragon-subnet (10.0.0.0/24)
         ├── Secondary Range "pods": 10.1.0.0/16
         └── Secondary Range "services": 10.2.0.0/20
             └── GKE Cluster: dragon-gke (zonal)
                 └── Node Pool: dragon-nodes (custom, managed by Pulumi)
-                    ├── Node 1: e2-medium, 50GB pd-standard (Ready)
-                    └── Node 2: e2-medium, 50GB pd-standard (Ready)
+                    ├── Node 1: e2-medium, 50GB (34.158.41.47)
+                    └── Node 2: e2-medium, 50GB (34.87.99.143)
+                        └── Namespace: dragon
+                            ├── StatefulSet: mongodb (mongo:7, 1/1 Running)
+                            ├── Service: mongodb (NodePort 30017)
+                            ├── PVC: mongodb-data (3GB pd-standard)
+                            └── Secret: mongodb-secret
 ```
 
 ### Bao mat
@@ -629,6 +636,242 @@ kubectl get nodes -o wide
 **Tai nguyen kha dung cho apps**: ~6GB RAM (8GB tong - ~1.6GB system - ~0.4GB reserved)
 
 **Chi phi moi**: ~$52/thang
+
+---
+
+### Step 18: Deploy MongoDB len GKE
+**Muc dich**: Deploy MongoDB la service dau tien tren GKE cluster, co public access.
+
+**18a. Tao folder va files K8s:**
+```
+infra/gke/mongodb/
+├── namespace.yaml      # Namespace "dragon"
+├── pvc.yaml            # PersistentVolumeClaim 3GB pd-standard
+├── statefulset.yaml    # MongoDB StatefulSet (mongo:7)
+└── service.yaml        # NodePort Service (27017 -> 30017)
+```
+
+**Quyet dinh thiet ke:**
+| Quyet dinh | Ly do |
+|---|---|
+| StatefulSet (khong phai Deployment) | Stable pod identity, phu hop database |
+| NodePort 30017 (khong phai LoadBalancer) | Mien phi ($0) vs LoadBalancer (~$18/thang) |
+| Secrets khong luu trong YAML | Bao mat - inject tu GitHub Secrets khi deploy |
+| 3GB PVC pd-standard | Du cho dev, re nhat |
+
+**18b. Secret management flow:**
+```
+GitHub Secrets (MONGO_USERNAME, MONGO_PASSWORD)
+    │
+    ▼
+GitHub Actions workflow
+    ├─ kubectl create secret (inject tu GitHub Secrets)
+    └─ kubectl apply -f infra/gke/mongodb/
+```
+- K8s Secret **KHONG** nam trong git
+- Tao bang `kubectl create secret` tai thoi diem deploy
+- StatefulSet reference secret qua `secretKeyRef`
+
+**18c. Tao secret.md (gitignored):**
+- File local-only luu credentials
+- Da them `secret.md` vao `.gitignore`
+
+---
+
+### Step 19: Setup Workload Identity Federation (GitHub Actions <-> GCP)
+**Muc dich**: Cho phep GitHub Actions xac thuc voi GCP ma khong can key file.
+
+**19a. Tao GCP Service Account:**
+```bash
+gcloud iam service-accounts create dragon-deployer \
+  --display-name="Dragon GKE Deployer" --project=fair-backbone-479312-h7
+# => Created service account [dragon-deployer]
+```
+
+**19b. Grant role:**
+```bash
+gcloud projects add-iam-policy-binding fair-backbone-479312-h7 \
+  --member="serviceAccount:dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com" \
+  --role="roles/container.developer" --condition=None --quiet
+```
+
+**19c. Tao Workload Identity Pool:**
+```bash
+gcloud iam workload-identity-pools create dragon-github-pool \
+  --location="global" --display-name="Dragon GitHub Pool" \
+  --project=fair-backbone-479312-h7
+```
+
+**19d. Tao OIDC Provider (gap loi lan 1):**
+```bash
+# Lan 1 - THAT BAI: thieu --attribute-condition
+gcloud iam workload-identity-pools providers create-oidc dragon-github-provider ...
+# ERROR: INVALID_ARGUMENT: The attribute condition must reference one of the provider's claims
+
+# Lan 2 - THANH CONG: them --attribute-condition
+gcloud iam workload-identity-pools providers create-oidc dragon-github-provider \
+  --location="global" --workload-identity-pool="dragon-github-pool" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository=='dongitran/Dragon-Template-AI'" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --project=fair-backbone-479312-h7
+```
+
+**19e. Bind SA voi WIF Pool:**
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/544685971138/locations/global/workloadIdentityPools/dragon-github-pool/attribute.repository/dongitran/Dragon-Template-AI"
+```
+
+**WIF Provider full name:**
+```
+projects/544685971138/locations/global/workloadIdentityPools/dragon-github-pool/providers/dragon-github-provider
+```
+
+---
+
+### Step 20: Tao GitHub Actions deploy workflow
+**Muc dich**: Tao workflow tu dong deploy len GKE khi push changes vao `infra/gke/`.
+
+**File**: `.github/workflows/deploy-gke.yml`
+
+**Trigger:**
+- Push to `main` khi co thay doi trong `infra/gke/**`
+- Manual dispatch (`workflow_dispatch`)
+
+**Steps trong workflow:**
+1. Checkout code
+2. Auth GCP (Workload Identity Federation - keyless)
+3. Get GKE credentials
+4. Create namespace (`--dry-run=client | kubectl apply` de idempotent)
+5. Create K8s Secret (inject tu `${{ secrets.MONGO_USERNAME }}` / `${{ secrets.MONGO_PASSWORD }}`)
+6. Deploy manifests (`kubectl apply -f infra/gke/mongodb/`)
+7. Wait for rollout
+8. Show status
+
+**Set GitHub Secrets:**
+```bash
+gh secret set MONGO_USERNAME --body "dragon_db_admin"
+gh secret set MONGO_PASSWORD --body "***"
+```
+
+---
+
+### Step 21: Deploy va troubleshooting MongoDB
+**Muc dich**: Deploy MongoDB va xu ly cac loi gap phai.
+
+**21a. Tao namespace va secret (thu cong lan dau):**
+```bash
+kubectl create namespace dragon
+# => namespace/dragon created
+
+kubectl create secret generic mongodb-secret -n dragon \
+  --from-literal=MONGO_INITDB_ROOT_USERNAME=dragon_db_admin \
+  --from-literal=MONGO_INITDB_ROOT_PASSWORD=***
+# => secret/mongodb-secret created
+```
+
+**21b. Trigger workflow:**
+```bash
+gh workflow run deploy-gke.yml
+```
+- Workflow chay thanh cong den step "Deploy MongoDB"
+- **THAT BAI** tai "Wait for MongoDB ready" - timeout 120s
+
+**21c. Loi 1: Pod Pending - Insufficient CPU**
+```
+Events:
+  Warning  FailedScheduling  0/2 nodes are available: 2 Insufficient cpu
+```
+- **Nguyen nhan**: Moi node chi co **940m CPU allocatable** (GKE reserve nhieu), system pods da chiem **~750m/node**, chi con ~190m free
+- MongoDB request **250m** > 190m con lai
+- **Fix**: Giam CPU request tu 250m xuong **100m**
+
+**21d. Loi 2: Probe timeout**
+```
+Events:
+  Warning  Unhealthy  Liveness probe errored: command timed out after 1s
+  Warning  Unhealthy  Readiness probe errored: command timed out after 1s
+```
+- **Nguyen nhan**: `mongosh` startup cham tren CPU nho (100m), vuot qua timeout 1s
+- **Fix**: Tang `timeoutSeconds` tu 1s len **10s**, tang `initialDelaySeconds` cua liveness tu 30s len **60s**
+
+**21e. Thanh cong:**
+```bash
+kubectl get pods -n dragon
+# NAME        READY   STATUS    RESTARTS   AGE
+# mongodb-0   1/1     Running   0          64s
+
+kubectl exec -it mongodb-0 -n dragon -- mongosh -u dragon_db_admin -p *** \
+  --authenticationDatabase admin --eval "db.adminCommand('ping')"
+# { ok: 1 }
+```
+
+**21f. Tao firewall rule cho NodePort:**
+```bash
+# Lan 1 - SAI network (default):
+gcloud compute firewall-rules create allow-mongodb-nodeport \
+  --allow tcp:30017 --source-ranges=0.0.0.0/0
+# => Tao tren network "default", nhung nodes nam tren "dragon-network-1304a1a"
+
+# Xoa va tao lai dung network:
+gcloud compute firewall-rules delete allow-mongodb-nodeport --quiet
+gcloud compute firewall-rules create allow-mongodb-nodeport \
+  --allow tcp:30017 \
+  --target-tags=gke-dragon-gke-eeb4b472-node \
+  --source-ranges=0.0.0.0/0 \
+  --network=dragon-network-1304a1a \
+  --project=fair-backbone-479312-h7
+```
+
+**21g. Test ket noi tu ben ngoai:**
+```bash
+mongosh "mongodb://dragon_db_admin:***@34.158.41.47:30017/dragon-template-ai?authSource=admin" \
+  --eval "db.adminCommand('ping')"
+# { ok: 1 }  ✓
+```
+
+**Ket qua**: MongoDB accessible tu public internet qua NodePort 30017.
+
+---
+
+## Ket qua cuoi cung (Updated)
+
+### MongoDB on GKE
+| Property | Value |
+|----------|-------|
+| Pod | mongodb-0 (StatefulSet) |
+| Image | mongo:7 |
+| Namespace | dragon |
+| PVC | 3GB pd-standard |
+| Service | NodePort 30017 |
+| Node IPs | 34.158.41.47, 34.87.99.143 |
+| CPU | request 100m, limit 500m |
+| Memory | request 256Mi, limit 512Mi |
+
+### CI/CD Pipeline
+| Component | Value |
+|----------|-------|
+| Workflow | `.github/workflows/deploy-gke.yml` |
+| Auth | Workload Identity Federation (keyless) |
+| Service Account | dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com |
+| WIF Pool | dragon-github-pool |
+| WIF Provider | dragon-github-provider |
+| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD |
+
+---
+
+## Troubleshooting Log (Updated)
+
+| # | Van de | Nguyen nhan | Cach fix |
+|---|--------|-------------|----------|
+| 9 | `Insufficient cpu` (pod Pending) | e2-medium chi co 940m allocatable, system pods chiem ~750m | Giam CPU request tu 250m xuong 100m |
+| 10 | Probe timeout 1s | `mongosh` startup cham tren CPU nho | Tang `timeoutSeconds` len 10s |
+| 11 | Firewall rule sai network | Tao tren `default` thay vi `dragon-network-1304a1a` | Xoa va tao lai voi `--network=dragon-network-1304a1a` |
+| 12 | WIF Provider thieu attribute condition | GCP yeu cau bat buoc | Them `--attribute-condition` |
+| 13 | GitHub Actions "Wait for MongoDB" timeout | Pod Pending vi CPU + probe issues | Fix CPU request va probe timeout, re-trigger |
 
 ---
 
