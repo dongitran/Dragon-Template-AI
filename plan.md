@@ -89,6 +89,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [x] Frontend: Protected routes — redirect unauthenticated users to login page
 - [x] Frontend: Token storage, auto-refresh, and session expiration handling
 - [x] Write tests for auth middleware and user sync
+- [x] E2E tests with Playwright (auth flows, navigation, route protection — 21 tests)
 
 **Deliverable:** Users can register and log in via a custom-designed login page, with user data synced to MongoDB.
 
