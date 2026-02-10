@@ -1,0 +1,55 @@
+name: Deploy to GKE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/gke/**'
+
+  workflow_dispatch:
+
+jobs:
+  deploy-mongodb:
+    name: Deploy MongoDB
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(toJSON(github.event.commits.*.modified), 'infra/gke/mongodb/')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/544685971138/locations/global/workloadIdentityPools/dragon-github-pool/providers/dragon-github-provider'
+          service_account: 'dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com'
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: dragon-gke
+          location: asia-southeast1-a
+
+      - name: Create namespace
+        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create MongoDB secret
+        run: |
+          kubectl create secret generic mongodb-secret -n dragon \
+            --from-literal=MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_USERNAME }} \
+            --from-literal=MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy MongoDB
+        run: kubectl apply -f infra/gke/mongodb/
+
+      - name: Wait for MongoDB ready
+        run: kubectl rollout status statefulset/mongodb -n dragon --timeout=120s
+
+      - name: Show status
+        run: |
+          kubectl get pods -n dragon
+          kubectl get svc -n dragon
+          kubectl get pvc -n dragon
