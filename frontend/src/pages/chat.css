@@ -257,48 +257,24 @@
     -webkit-backdrop-filter: blur(12px);
 }
 
-.chat-input-wrapper {
+.chat-input-container {
     max-width: 800px;
     margin: 0 auto;
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    padding: 8px;
+    padding: 12px;
     transition: border-color 0.2s ease;
 }
 
-.chat-input-wrapper:focus-within {
+.chat-input-container:focus-within {
     border-color: #6C5CE7;
     box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.15);
 }
 
-/* Inline model selector in input */
-.chat-input-model-selector {
-    flex-shrink: 0;
-}
-
-.chat-input-model-selector .ant-select-selector {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 8px !important;
-    color: #fff !important;
-    min-width: 120px !important;
-}
-
-.chat-input-model-selector .ant-select-selection-item {
-    color: rgba(255, 255, 255, 0.85) !important;
-    font-size: 13px !important;
-}
-
-.chat-input-model-selector .ant-select-arrow {
-    color: rgba(255, 255, 255, 0.5) !important;
-}
-
+/* Textarea - top row, full width */
 .chat-input-textarea {
-    flex: 1;
+    width: 100%;
     background: transparent;
     border: none;
     outline: none;
@@ -310,11 +286,81 @@
     max-height: 160px;
     line-height: 24px;
     padding: 4px 0;
+    margin-bottom: 8px;
 }
 
 .chat-input-textarea::placeholder {
     color: rgba(255, 255, 255, 0.3);
 }
+
+/* Bottom controls row */
+.chat-input-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.chat-input-left,
+.chat-input-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Tools button (left side) */
+.chat-tools-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    cursor: not-allowed;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.chat-tools-btn:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.chat-tools-icon {
+    font-size: 16px;
+    font-weight: 300;
+}
+
+.chat-tools-text {
+    font-weight: 400;
+}
+
+/* Model selector (right side, inline) */
+.chat-input-model-selector {
+    flex-shrink: 0;
+}
+
+.chat-input-model-selector .ant-select-selector {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    min-width: 110px !important;
+    max-width: 150px !important;
+}
+
+.chat-input-model-selector .ant-select-selection-item {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 13px !important;
+}
+
+.chat-input-model-selector .ant-select-arrow {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Send/Stop button */
 
 .chat-send-btn {
     width: 36px;

@@ -37,17 +37,8 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
 
     return (
         <div className="chat-input-area">
-            <div className="chat-input-wrapper">
-                {/* Model selector on the left */}
-                <Select
-                    className="chat-input-model-selector"
-                    value={selectedModel || undefined}
-                    onChange={onModelChange}
-                    options={modelOptions}
-                    size="small"
-                    popupMatchSelectWidth={false}
-                    disabled={isStreaming}
-                />
+            <div className="chat-input-container">
+                {/* Textarea row */}
                 <textarea
                     ref={textareaRef}
                     className="chat-input-textarea"
@@ -57,23 +48,47 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                     onKeyDown={handleKeyDown}
                     disabled={isStreaming}
                 />
-                {isStreaming ? (
-                    <button
-                        className="chat-send-btn chat-stop-btn"
-                        onClick={onStop}
-                        title="Stop generating"
-                    >
-                        <StopOutlined />
-                    </button>
-                ) : (
-                    <button
-                        className="chat-send-btn"
-                        onClick={handleSubmit}
-                        title="Send message"
-                    >
-                        <SendOutlined />
-                    </button>
-                )}
+
+                {/* Bottom controls row */}
+                <div className="chat-input-controls">
+                    {/* Left: Tools button (placeholder for future) */}
+                    <div className="chat-input-left">
+                        <button className="chat-tools-btn" disabled>
+                            <span className="chat-tools-icon">+</span>
+                            <span className="chat-tools-text">Tools</span>
+                        </button>
+                    </div>
+
+                    {/* Right: Model selector + Send button */}
+                    <div className="chat-input-right">
+                        <Select
+                            className="chat-input-model-selector"
+                            value={selectedModel || undefined}
+                            onChange={onModelChange}
+                            options={modelOptions}
+                            size="small"
+                            popupMatchSelectWidth={false}
+                            disabled={isStreaming}
+                        />
+                        {isStreaming ? (
+                            <button
+                                className="chat-send-btn chat-stop-btn"
+                                onClick={onStop}
+                                title="Stop generating"
+                            >
+                                <StopOutlined />
+                            </button>
+                        ) : (
+                            <button
+                                className="chat-send-btn"
+                                onClick={handleSubmit}
+                                title="Send message"
+                            >
+                                <SendOutlined />
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
