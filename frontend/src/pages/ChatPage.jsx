@@ -199,9 +199,13 @@ function ChatPage() {
                         </div>
                     ) : (
                         <>
-                            {messages.map((msg, i) => (
-                                <ChatMessage key={i} message={msg} />
-                            ))}
+                            {messages.map((msg, i) => {
+                                // Skip rendering empty assistant message during streaming — TypingIndicator replaces it
+                                const isLastEmpty = isStreaming && i === messages.length - 1
+                                    && msg.role === 'assistant' && msg.content === '';
+                                if (isLastEmpty) return null;
+                                return <ChatMessage key={i} message={msg} />;
+                            })}
                             {isStreaming && messages[messages.length - 1]?.content === '' && (
                                 <TypingIndicator />
                             )}
