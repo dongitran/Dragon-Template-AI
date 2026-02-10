@@ -62,9 +62,12 @@ function ChatPage() {
         let displayedContent = '';
         let typingInterval = null;
 
-        // Start character-by-character display loop (20 chars/sec = 50ms per char)
+        // Start character-by-character display loop
         const startTyping = () => {
             if (typingInterval) return; // Already running
+            const charsPerSec = parseInt(import.meta.env.VITE_CHAT_TYPING_SPEED || '20', 10);
+            const intervalMs = 1000 / charsPerSec; // Convert to ms per char
+
             typingInterval = setInterval(() => {
                 if (charQueue.length > 0) {
                     // Take next character from queue
@@ -81,7 +84,7 @@ function ChatPage() {
                         return updated;
                     });
                 }
-            }, 50); // 20 chars/sec
+            }, intervalMs);
         };
 
         const stopTyping = () => {
