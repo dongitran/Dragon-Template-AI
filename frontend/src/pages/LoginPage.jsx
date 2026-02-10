@@ -16,7 +16,6 @@ export default function LoginPage() {
         setLoading(true);
         try {
             await login(values.username, values.password);
-            message.success('Welcome back!');
             navigate('/');
         } catch (err) {
             message.error(err.message);
