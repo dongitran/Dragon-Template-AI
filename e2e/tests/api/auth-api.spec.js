@@ -14,6 +14,8 @@
  *  9. POST /api/auth/logout — should clear auth cookies
  * 10. POST /api/auth/register — should reject missing fields (400)
  * 11. POST /api/auth/register — should reject duplicate username (409)
+ * 12. Rate limiting — should include rate limit headers on responses
+ * 13. Rate limiting — should reject oversized request body (413)
  */
 import { test, expect } from '@playwright/test';
 
@@ -178,5 +180,27 @@ test.describe('Auth API — Register', () => {
         expect(res.status()).toBe(409);
         const body = await res.json();
         expect(body.error).toContain('already exists');
+    });
+});
+
+test.describe('Rate Limiting', () => {
+    test('should include rate limit headers on responses', async ({ request }) => {
+        const res = await request.get(`${API_BASE}/api/health`);
+
+        expect(res.status()).toBe(200);
+        const headers = res.headers();
+        expect(headers['ratelimit-limit']).toBeTruthy();
+        expect(headers['ratelimit-remaining']).toBeTruthy();
+        expect(headers['ratelimit-reset']).toBeTruthy();
+    });
+
+    test('should reject oversized request body', async ({ request }) => {
+        const largePayload = { data: 'x'.repeat(20000) };
+
+        const res = await request.post(`${API_BASE}/api/auth/login`, {
+            data: largePayload,
+        });
+
+        expect(res.status()).toBe(413);
     });
 });

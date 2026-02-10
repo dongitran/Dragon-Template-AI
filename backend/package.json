@@ -1,18 +1,19 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Dragon Template AI backend — Express.js API with Keycloak auth and MongoDB",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "jest",
     "test:unit": "jest --testPathPatterns=tests/unit",
-    "test:integration": "jest --testPathPatterns=tests/integration"
+    "test:integration": "jest --testPathPatterns=tests/integration",
+    "setup:keycloak": "node scripts/setup-keycloak.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "dongtran",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.13.5",
@@ -20,6 +21,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^3.2.2",
     "mongoose": "^9.2.0"

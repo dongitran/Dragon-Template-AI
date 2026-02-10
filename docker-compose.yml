@@ -2,12 +2,15 @@ services:
   mongodb:
     image: mongo:7
     container_name: dragon-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: dragon_admin
+      MONGO_INITDB_ROOT_PASSWORD: dragon_secret_2026
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "dragon_admin", "-p", "dragon_secret_2026", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
