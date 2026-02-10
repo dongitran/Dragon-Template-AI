@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "test": "jest"
+    "test": "jest",
+    "test:unit": "jest --testPathPatterns=tests/unit",
+    "test:integration": "jest --testPathPatterns=tests/integration"
   },
   "keywords": [],
   "author": "",

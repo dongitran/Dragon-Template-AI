@@ -1,19 +1,13 @@
 const request = require('supertest');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-const app = require('../src/app');
-
-let mongoServer;
+const db = require('../helpers/db');
+const app = require('../../src/app');
 
 beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri);
+    await db.connect();
 });
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await db.disconnect();
 });
 
 describe('GET /api/health (integration)', () => {
