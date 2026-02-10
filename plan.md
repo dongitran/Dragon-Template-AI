@@ -54,23 +54,47 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 3: Authentication with Keycloak
+## Phase 3: Frontend Foundation & Docker Optimization
 
-**Goal:** Implement full authentication flow using Keycloak for both frontend and backend.
+**Goal:** Set up Ant Design UI framework, configure base theme/layout, and optimize Dockerfiles for both dev and production.
 
-- [ ] Configure Keycloak realm, client, and roles
-- [ ] Backend: Implement token validation middleware (OAuth 2.0 / OpenID Connect)
-- [ ] Backend: Create user-related REST API endpoints
-- [ ] Frontend: Integrate Keycloak JS adapter for login/logout/register
-- [ ] Frontend: Protected routes — redirect unauthenticated users to login
-- [ ] Handle token refresh and session expiration
-- [ ] Test login flow end-to-end
+- [ ] Frontend: Install and configure Ant Design
+- [ ] Frontend: Set up base layout component (header, sidebar placeholder, main content)
+- [ ] Frontend: Configure Ant Design theme (color palette, dark mode support)
+- [ ] Frontend: Set up CSS Modules or Vanilla CSS structure for custom styles
+- [ ] Frontend: Add React Router for page navigation
+- [ ] Optimize backend Dockerfile (multi-stage build, non-root user, production mode)
+- [ ] Optimize frontend Dockerfile (multi-stage build with nginx for production, dev mode for local)
+- [ ] Verify Docker builds and CI pipeline still pass
 
-**Deliverable:** Users can register, log in via Keycloak, and access protected pages.
+**Deliverable:** Frontend has Ant Design with a base layout ready for pages. Docker images are production-optimized.
 
 ---
 
-## Phase 4: Basic AI Chat
+## Phase 4: Authentication with Keycloak
+
+**Goal:** Implement full authentication flow with a custom login page, Keycloak as identity provider, and user sync to MongoDB.
+
+- [ ] Configure Keycloak realm, client, and roles (via admin console or realm export JSON)
+- [ ] Backend: JWT token validation middleware (verify Keycloak-issued tokens)
+- [ ] Backend: MongoDB `users` collection (keycloakId, email, displayName, avatar, preferences, lastLoginAt)
+- [ ] Backend: User sync — on first login, create user record in MongoDB; on subsequent logins, update `lastLoginAt`
+- [ ] Backend: REST API endpoints:
+  - `POST /api/auth/login` — proxy to Keycloak token endpoint
+  - `POST /api/auth/register` — proxy to Keycloak registration
+  - `POST /api/auth/refresh` — refresh access token
+  - `GET /api/auth/me` — return current user profile from MongoDB
+- [ ] Frontend: Custom Login page (email/password form, modern design)
+- [ ] Frontend: Custom Register page
+- [ ] Frontend: Protected routes — redirect unauthenticated users to login page
+- [ ] Frontend: Token storage, auto-refresh, and session expiration handling
+- [ ] Write tests for auth middleware and user sync
+
+**Deliverable:** Users can register and log in via a custom-designed login page, with user data synced to MongoDB.
+
+---
+
+## Phase 5: Basic AI Chat
 
 **Goal:** Build the core chat interface integrated with Google Gemini, with streaming responses.
 
@@ -88,7 +112,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 5: Chat Session Management
+## Phase 6: Chat Session Management
 
 **Goal:** Implement full conversation management — history, sessions, multi-chat support.
 
@@ -108,7 +132,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 6: Command — Generate Project Plan
+## Phase 7: Command — Generate Project Plan
 
 **Goal:** Add the "Generate Project Plan" command that creates a rich markdown document in an editor view.
 
@@ -131,7 +155,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 7: Command — Generate Workflow
+## Phase 8: Command — Generate Workflow
 
 **Goal:** Add the "Generate Workflow" command that creates interactive flowchart diagrams.
 
@@ -154,7 +178,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 8: Command — Generate Roadmap
+## Phase 9: Command — Generate Roadmap
 
 **Goal:** Add the "Generate Roadmap" command for timeline-based project visualization.
 
@@ -170,7 +194,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 9: Command — Generate Sprint
+## Phase 10: Command — Generate Sprint
 
 **Goal:** Add the "Generate Sprint" command for agile sprint planning.
 
@@ -185,12 +209,12 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 10: Command — Generate Document
+## Phase 11: Command — Generate Document
 
 **Goal:** Add a general-purpose "Generate Document" command for various document types.
 
 - [ ] Backend: API endpoint to generate different document formats (reports, proposals, specs, etc.)
-- [ ] Frontend: Reuse the Markdown Document Editor from Phase 5
+- [ ] Frontend: Reuse the Markdown Document Editor from Phase 7
 - [ ] Template selection: users can choose a document type/template before generating
 - [ ] Export to PDF, Markdown, or DOCX
 
@@ -198,7 +222,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 11: Template Management & Projects
+## Phase 12: Template Management & Projects
 
 **Goal:** Allow users to manage all generated artifacts in a centralized library.
 
@@ -213,7 +237,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 12: Polish & Production Readiness
+## Phase 13: Polish & Production Readiness
 
 **Goal:** Final polish, performance, and deployment preparation.
 
