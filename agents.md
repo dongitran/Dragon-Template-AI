@@ -89,3 +89,20 @@ After an AI response, the system suggests follow-up actions:
 - "Tools" menu for additional capabilities
 - File attachment support in chat input
 - Multiple AI model options for different quality/speed tradeoffs
+
+---
+
+## Development Workflow
+
+### Docker Container Management
+- **Always check container logs after restart/rebuild:** Run `docker compose logs <service> --tail 200` after any `docker compose up` to verify services started correctly
+- Common issues:
+  - Stale `node_modules` in anonymous volumes → fix with `docker compose down -v` then rebuild
+  - Missing env vars → verify with `docker exec <container> env | grep <VAR>`
+- Check all container statuses with `docker compose ps` before testing
+
+### Code Quality
+- No hardcoded default values for environment variables — all config must come from `.env` files
+- Every file should end with exactly one newline
+- Run `npm test` in both `backend/` and `frontend/` before committing
+

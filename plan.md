@@ -92,6 +92,12 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 **Deliverable:** Users can register and log in via a custom-designed login page, with user data synced to MongoDB.
 
+**Test credentials:**
+- Keycloak Admin: `admin` / `admin` → http://localhost:8080
+- Test User: `testuser` / `testpass123` (email: `test@dragon.ai`)
+- Keycloak realm: `dragon`, client: `dragon-app`
+- Note: Keycloak data is lost when Docker volumes are wiped — recreate via Admin API (see commit history)
+
 ---
 
 ## Phase 5: Basic AI Chat
