@@ -205,21 +205,12 @@ function ChatPage() {
 
     return (
         <div className="chat-container">
-            {/* Header with model selector */}
+            {/* Header */}
             <div className="chat-header">
                 <span className="chat-header-title">
                     <RocketOutlined style={{ marginRight: 8 }} />
                     Dragon AI Chat
                 </span>
-                <Select
-                    className="model-selector"
-                    value={selectedModel || undefined}
-                    onChange={setSelectedModel}
-                    options={modelOptions}
-                    placeholder="Select model"
-                    size="small"
-                    popupMatchSelectWidth={false}
-                />
             </div>
 
             {/* Messages area */}
@@ -254,6 +245,9 @@ function ChatPage() {
                 onSend={handleSend}
                 isStreaming={isStreaming}
                 onStop={handleStop}
+                modelOptions={modelOptions}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
             />
         </div>
     );

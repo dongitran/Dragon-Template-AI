@@ -266,13 +266,35 @@
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    padding: 8px 8px 8px 16px;
+    padding: 8px;
     transition: border-color 0.2s ease;
 }
 
 .chat-input-wrapper:focus-within {
     border-color: #6C5CE7;
     box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.15);
+}
+
+/* Inline model selector in input */
+.chat-input-model-selector {
+    flex-shrink: 0;
+}
+
+.chat-input-model-selector .ant-select-selector {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    min-width: 120px !important;
+}
+
+.chat-input-model-selector .ant-select-selection-item {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 13px !important;
+}
+
+.chat-input-model-selector .ant-select-arrow {
+    color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .chat-input-textarea {

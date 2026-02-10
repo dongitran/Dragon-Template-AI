@@ -1,7 +1,8 @@
 import { useRef, useEffect } from 'react';
 import { SendOutlined, StopOutlined } from '@ant-design/icons';
+import { Select } from 'antd';
 
-function ChatInput({ onSend, isStreaming, onStop }) {
+function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, onModelChange }) {
     const textareaRef = useRef(null);
 
     // Auto-resize textarea
@@ -37,6 +38,16 @@ function ChatInput({ onSend, isStreaming, onStop }) {
     return (
         <div className="chat-input-area">
             <div className="chat-input-wrapper">
+                {/* Model selector on the left */}
+                <Select
+                    className="chat-input-model-selector"
+                    value={selectedModel || undefined}
+                    onChange={onModelChange}
+                    options={modelOptions}
+                    size="small"
+                    popupMatchSelectWidth={false}
+                    disabled={isStreaming}
+                />
                 <textarea
                     ref={textareaRef}
                     className="chat-input-textarea"
