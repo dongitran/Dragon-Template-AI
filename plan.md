@@ -106,24 +106,33 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ## Phase 5: Basic AI Chat
 
-**Goal:** Build the core chat interface integrated with Google Gemini, with streaming responses.
+**Goal:** Build the core chat interface integrated with Google Gemini, with streaming responses and multi-provider support.
 
-- [ ] Backend: Integrate Gemini API with streaming support (Server-Sent Events or WebSocket)
-- [ ] Backend: REST API endpoints for sending messages and receiving streamed responses
-- [ ] Frontend: Chat UI layout (sidebar + main chat area)
-  - Message input bar with send button
-  - Chat bubble display (user messages + AI responses)
+- [ ] Backend: Multi-key Gemini integration (`@google/genai` SDK)
+  - Support multiple API keys via `GEMINI_API_KEYS` env var (comma-separated)
+  - Round-robin key rotation across requests for load distribution
+- [ ] Backend: Multi-provider AI config via `AI_PROVIDERS_CONFIG` JSON env var
+  - Provider: `google` with models: `gemini-3-pro-preview`, `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemini-2.5-flash`
+  - Extensible: can add new providers (e.g. OpenAI, Anthropic) via JSON config later
+  - `GET /api/chat/models` — returns available providers and models for UI selector
+- [ ] Backend: REST API endpoints for chat with streaming (Server-Sent Events)
+  - `POST /api/chat` — accepts `{ messages, model }`, streams response via SSE
+  - `GET /api/chat/models` — returns available models from config
+  - Auth required on all endpoints
+- [ ] Frontend: Chat UI layout (replaces current HomePage)
+  - Message input bar with send button (auto-resize textarea)
+  - Chat bubble display (user messages + AI responses with markdown rendering)
   - Typing/loading indicator ("Researching...")
   - Auto-scroll to latest message
-- [ ] Frontend: Consume streaming responses and render progressively
-- [ ] AI model selector (optional: switch between models)
-- [ ] Backend: Unit tests for chat service and streaming logic
+  - Model selector dropdown in chat header
+- [ ] Frontend: Consume streaming SSE responses and render progressively
+- [ ] Backend: Unit tests for chat service, key rotation, model config
 - [ ] Backend: Integration tests for chat API endpoints
-- [ ] E2E: UI tests for chat interface (send message, receive response, streaming)
+- [ ] E2E: UI tests for chat interface (send message, receive response, model selector)
 - [ ] E2E: API tests for chat endpoints (message send, stream, error handling)
 - [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
-**Deliverable:** Users can chat with AI and see streamed responses in real-time.
+**Deliverable:** Users can chat with AI, choose models, and see streamed responses in real-time.
 
 ---
 

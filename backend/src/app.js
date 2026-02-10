@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const authRoutes = require('./routes/auth');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use('/api/auth/register', registerLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

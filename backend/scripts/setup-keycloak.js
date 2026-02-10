@@ -133,7 +133,6 @@ async function setup() {
             firstName: TEST_USER.firstName,
             lastName: TEST_USER.lastName,
             enabled: true,
-            emailVerified: true,
             credentials: [{
                 type: 'password',
                 value: TEST_USER.password,
