@@ -92,7 +92,7 @@ router.post('/register', async (req, res) => {
             expiresIn: tokenData.expires_in,
         });
     } catch (err) {
-        if (err.response?.status === 409) {
+        if (err.response?.status === 409 || err.response?.status === 403) {
             return res.status(409).json({ error: 'User already exists' });
         }
         console.error('Register error:', err.response?.data || err.message);

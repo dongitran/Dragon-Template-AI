@@ -88,8 +88,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [x] Frontend: Custom Register page
 - [x] Frontend: Protected routes — redirect unauthenticated users to login page
 - [x] Frontend: Token storage, auto-refresh, and session expiration handling
-- [x] Write tests for auth middleware and user sync
-- [x] E2E tests with Playwright (auth flows, navigation, route protection — 21 tests)
+- [x] Backend: Unit tests for auth middleware, routes, utils (48 tests, 95.96% coverage)
+- [x] Backend: Integration tests for user sync and auth endpoints
+- [x] E2E: UI tests — auth flows, navigation, route protection (25 tests)
+- [x] E2E: API tests — health, login, register, refresh, logout, /me (11 tests)
+- [x] Run all tests and fix failures (register 409 bug fixed)
 
 **Deliverable:** Users can register and log in via a custom-designed login page, with user data synced to MongoDB.
 
@@ -114,6 +117,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Auto-scroll to latest message
 - [ ] Frontend: Consume streaming responses and render progressively
 - [ ] AI model selector (optional: switch between models)
+- [ ] Backend: Unit tests for chat service and streaming logic
+- [ ] Backend: Integration tests for chat API endpoints
+- [ ] E2E: UI tests for chat interface (send message, receive response, streaming)
+- [ ] E2E: API tests for chat endpoints (message send, stream, error handling)
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** Users can chat with AI and see streamed responses in real-time.
 
@@ -134,6 +142,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Delete chat sessions
 - [ ] Auto-generate session title from first message (via AI summarization)
 - [ ] Persist and restore full conversation context per session
+- [ ] Backend: Unit tests for session service and message CRUD
+- [ ] Backend: Integration tests for session API endpoints
+- [ ] E2E: UI tests for session management (create, switch, rename, delete)
+- [ ] E2E: API tests for session CRUD endpoints
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** Full multi-session chat experience with history stored in MongoDB.
 
@@ -157,6 +170,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Image options: aspect ratio, filters, resize
 - [ ] Save generated document as a reusable template
 - [ ] Download document (PDF/Markdown export)
+- [ ] Backend: Unit tests for plan generation service
+- [ ] Backend: Integration tests for plan API endpoints
+- [ ] E2E: UI tests for document editor (create, edit, render, export)
+- [ ] E2E: API tests for plan generation and storage
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** "Generate Project Plan" command opens a full document editor with rich content, editable images, and export capability.
 
@@ -180,6 +198,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Add/remove nodes and connections
 - [ ] Export: Download as PNG/SVG, or save as a reusable template
 - [ ] Save workflow to user's template library
+- [ ] Backend: Unit tests for workflow generation service
+- [ ] Backend: Integration tests for workflow API endpoints
+- [ ] E2E: UI tests for diagram editor (create, edit nodes, connect, export)
+- [ ] E2E: API tests for workflow generation and storage
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** "Generate Workflow" command creates an interactive, editable flowchart diagram.
 
@@ -196,6 +219,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Phase cards with details and dependencies
 - [ ] Interactive editing: drag to reorder, click to edit, add/remove phases
 - [ ] Export and save as template
+- [ ] Backend: Unit tests for roadmap generation service
+- [ ] Backend: Integration tests for roadmap API endpoints
+- [ ] E2E: UI tests for roadmap view (create, edit, drag, export)
+- [ ] E2E: API tests for roadmap generation and storage
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** "Generate Roadmap" command creates a visual, editable project timeline.
 
@@ -211,6 +239,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Task cards with status, assignee, priority
   - Kanban-style or list view
 - [ ] Interactive editing and template saving
+- [ ] Backend: Unit tests for sprint generation service
+- [ ] Backend: Integration tests for sprint API endpoints
+- [ ] E2E: UI tests for sprint board (create, edit tasks, drag, status)
+- [ ] E2E: API tests for sprint generation and storage
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** "Generate Sprint" command creates a structured sprint plan.
 
@@ -224,6 +257,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [ ] Frontend: Reuse the Markdown Document Editor from Phase 7
 - [ ] Template selection: users can choose a document type/template before generating
 - [ ] Export to PDF, Markdown, or DOCX
+- [ ] Backend: Unit tests for document generation service
+- [ ] Backend: Integration tests for document API endpoints
+- [ ] E2E: UI tests for document generation (template select, edit, export)
+- [ ] E2E: API tests for document generation and storage
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** "Generate Document" command creates editable, exportable documents of any type.
 
@@ -239,6 +277,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [ ] Frontend: Projects page — group related templates into projects
 - [ ] Duplicate, rename, delete templates
 - [ ] Share templates (public link or export)
+- [ ] Backend: Unit tests for template CRUD service
+- [ ] Backend: Integration tests for template API endpoints
+- [ ] E2E: UI tests for template management (browse, search, filter, CRUD)
+- [ ] E2E: API tests for template and project endpoints
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
 **Deliverable:** Users can organize, find, and reuse all generated content.
 

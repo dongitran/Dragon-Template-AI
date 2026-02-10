@@ -175,9 +175,8 @@ test.describe('Auth API — Register', () => {
             },
         });
 
-        // Keycloak returns 409 for conflict, but our backend may wrap it as 500
-        expect([409, 500]).toContain(res.status());
+        expect(res.status()).toBe(409);
         const body = await res.json();
-        expect(body.error).toBeTruthy();
+        expect(body.error).toContain('already exists');
     });
 });
