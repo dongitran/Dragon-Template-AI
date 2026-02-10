@@ -34,6 +34,10 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - Configure `jest.config.js`
   - Write unit tests for health endpoint
   - Write test utilities and helpers
+- [x] Backend: Integration tests with `mongodb-memory-server`
+  - Install `mongodb-memory-server` for in-memory MongoDB
+  - Write integration tests for health endpoint with real DB connection
+  - Verify MongoDB connection status in health response
 - [x] Frontend: Set up Vitest testing framework
   - Install `vitest`, `@testing-library/react`, `@testing-library/jest-dom`
   - Configure Vitest in `vite.config.js`
