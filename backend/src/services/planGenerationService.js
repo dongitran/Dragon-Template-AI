@@ -141,8 +141,8 @@ Generate realistic, detailed, professional content for each section. Be specific
         }],
     });
 
-    for await (const chunk of result) {
-        const text = chunk.text;
+    for await (const chunk of result.stream) {
+        const text = chunk.text();
         if (text) yield text;
     }
 }

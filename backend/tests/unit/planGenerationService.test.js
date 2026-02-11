@@ -1,5 +1,5 @@
 const {
-    generatePlanContent,
+    generatePlanContentStream,
     extractImagePlaceholders,
     replacePlaceholders,
     markdownToBlockNote,
@@ -87,9 +87,11 @@ Text
 
             const result = replacePlaceholders(markdown, images);
 
+            // Matched placeholders get replaced
             expect(result).toContain('https://url.com/img.png');
-            expect(result).toContain('IMAGE_PLACEHOLDER_1');
-            expect(result).toContain('IMAGE_PLACEHOLDER_3');
+            // Unmatched placeholders are removed (replaced with empty string)
+            expect(result).not.toContain('IMAGE_PLACEHOLDER_1');
+            expect(result).not.toContain('IMAGE_PLACEHOLDER_3');
         });
     });
 
@@ -162,27 +164,37 @@ Paragraph`;
         });
     });
 
-    describe('generatePlanContent', () => {
-        it('should call Gemini API and return markdown', async () => {
-            // Mock Gemini API
-            const mockGenerateText = jest.fn().mockResolvedValue({
-                text: '# Generated Plan\n## Section 1\nContent here\n![Mockup](IMAGE_PLACEHOLDER_1)',
+    describe('generatePlanContentStream', () => {
+        it('should stream markdown chunks from Gemini API', async () => {
+            // Mock streaming response
+            const mockStream = {
+                async *[Symbol.asyncIterator]() {
+                    yield { text: () => '# Generated Plan\n' };
+                    yield { text: () => '## Section 1\n' };
+                    yield { text: () => 'Content here\n' };
+                    yield { text: () => '![Mockup](IMAGE_PLACEHOLDER_1)' };
+                }
+            };
+
+            const mockGenerateContentStream = jest.fn().mockResolvedValue({
+                stream: mockStream,
             });
 
             GoogleGenAI.mockImplementation(() => ({
                 models: {
-                    get: jest.fn().mockReturnValue({
-                        generateText: mockGenerateText,
-                    }),
+                    generateContentStream: mockGenerateContentStream,
                 },
             }));
 
-            // Set env var
             process.env.GEMINI_API_KEYS = 'test-api-key';
 
-            const result = await generatePlanContent('Build a fitness app', {});
+            const chunks = [];
+            for await (const chunk of generatePlanContentStream('Build a fitness app', {})) {
+                chunks.push(chunk);
+            }
 
-            expect(mockGenerateText).toHaveBeenCalled();
+            const result = chunks.join('');
+            expect(mockGenerateContentStream).toHaveBeenCalled();
             expect(result).toContain('# Generated Plan');
             expect(result).toContain('IMAGE_PLACEHOLDER_1');
         });
@@ -190,19 +202,24 @@ Paragraph`;
         it('should throw error if GEMINI_API_KEYS not configured', async () => {
             delete process.env.GEMINI_API_KEYS;
 
-            await expect(generatePlanContent('Test prompt', {})).rejects.toThrow(
+            const generator = generatePlanContentStream('Test prompt', {});
+            await expect(generator.next()).rejects.toThrow(
                 'GEMINI_API_KEYS not configured'
             );
         });
 
         it('should use custom sections if provided', async () => {
-            const mockGenerateText = jest.fn().mockResolvedValue({ text: '# Plan' });
+            const mockGenerateContentStream = jest.fn().mockResolvedValue({
+                stream: {
+                    async *[Symbol.asyncIterator]() {
+                        yield { text: () => '# Plan' };
+                    }
+                },
+            });
 
             GoogleGenAI.mockImplementation(() => ({
                 models: {
-                    get: jest.fn().mockReturnValue({
-                        generateText: mockGenerateText,
-                    }),
+                    generateContentStream: mockGenerateContentStream,
                 },
             }));
 
@@ -212,26 +229,30 @@ Paragraph`;
                 sections: ['Overview', 'Budget', 'Timeline'],
             };
 
-            await generatePlanContent('Test', options);
+            // Consume generator to trigger API call
+            const chunks = [];
+            for await (const chunk of generatePlanContentStream('Test', options)) {
+                chunks.push(chunk);
+            }
 
-            const callArgs = mockGenerateText.mock.calls[0][0];
-            expect(callArgs.prompt).toContain('Overview');
-            expect(callArgs.prompt).toContain('Budget');
-            expect(callArgs.prompt).toContain('Timeline');
+            const callArgs = mockGenerateContentStream.mock.calls[0][0];
+            const promptContent = callArgs.contents[0].parts[0].text;
+            expect(promptContent).toContain('Overview');
+            expect(promptContent).toContain('Budget');
+            expect(promptContent).toContain('Timeline');
         });
 
         it('should handle Gemini API errors', async () => {
             GoogleGenAI.mockImplementation(() => ({
                 models: {
-                    get: jest.fn().mockReturnValue({
-                        generateText: jest.fn().mockRejectedValue(new Error('API Error')),
-                    }),
+                    generateContentStream: jest.fn().mockRejectedValue(new Error('API Error')),
                 },
             }));
 
             process.env.GEMINI_API_KEYS = 'test-key';
 
-            await expect(generatePlanContent('Test', {})).rejects.toThrow('API Error');
+            const generator = generatePlanContentStream('Test', {});
+            await expect(generator.next()).rejects.toThrow('API Error');
         });
     });
 });
