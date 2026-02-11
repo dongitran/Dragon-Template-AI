@@ -6,3 +6,4 @@ metadata:
 spec:
   domains:
     - keycloak.dragon-template.xyz
+    - api.dragon-template.xyz

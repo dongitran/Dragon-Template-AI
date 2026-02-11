@@ -499,9 +499,14 @@ kubectl get pods --all-namespaces
 ```
 GCP Project: fair-backbone-479312-h7
 ├── IAM: dragon-deployer SA + WIF (GitHub Actions OIDC)
+│   └── Roles: container.developer, artifactregistry.writer
+├── Artifact Registry: dragon-images (asia-southeast1, Docker)
+│   └── backend:latest (Express.js, linux/amd64)
 ├── Global Static IP: dragon-ingress-ip (34.120.179.221)
 ├── HTTP(S) Load Balancer (auto-created by GKE Ingress)
-│   └── GCP Managed Certificate: dragon-cert (keycloak.dragon-template.xyz)
+│   └── GCP Managed Certificate: dragon-cert
+│       ├── keycloak.dragon-template.xyz
+│       └── api.dragon-template.xyz
 └── VPC: dragon-network (custom, no auto-subnets)
     ├── Firewall: allow-mongodb-nodeport (tcp:30017)
     ├── Firewall: allow-keycloak-nodeport (tcp:30080)
@@ -522,10 +527,14 @@ GCP Project: fair-backbone-479312-h7
                             ├── Deployment: keycloak (keycloak:24.0, 1/1 Running)
                             ├── Service: keycloak (NodePort 30080)
                             ├── PVC: keycloak-data (1GB pd-standard)
-                            └── Secret: keycloak-secret
+                            ├── Secret: keycloak-secret
+                            ├── Deployment: backend (Express.js, 1/1 Running)
+                            ├── Service: backend (NodePort 30010)
+                            └── Secret: backend-secret
 
-DNS: keycloak.dragon-template.xyz -> 34.120.179.221 (A record @ matbao.net)
-Traffic flow: User -> keycloak.dragon-template.xyz:443 -> GCP LB (SSL termination) -> Keycloak:8080
+DNS (matbao.net, A records -> 34.120.179.221):
+  keycloak.dragon-template.xyz -> GCP LB -> Keycloak:8080
+  api.dragon-template.xyz      -> GCP LB -> Backend:3001
 ```
 
 ### Bao mat
@@ -1115,6 +1124,304 @@ HTTPS required
 
 ---
 
+### Step 24: Deploy Backend Service len GKE
+**Muc dich**: Deploy Express.js backend len GKE, co Docker image tren Artifact Registry, secrets inject qua GitHub Actions.
+
+**24a. Enable Artifact Registry & tao Docker repo:**
+```bash
+gcloud services enable artifactregistry.googleapis.com --project=fair-backbone-479312-h7
+# => Operation finished successfully
+
+gcloud artifacts repositories create dragon-images \
+  --repository-format=docker \
+  --location=asia-southeast1 \
+  --project=fair-backbone-479312-h7
+# => Created repository [dragon-images]
+```
+
+**24b. Grant Artifact Registry permissions cho deployer SA:**
+```bash
+gcloud projects add-iam-policy-binding fair-backbone-479312-h7 \
+  --member="serviceAccount:dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+```
+
+**24c. Set GitHub Secrets (5 secrets moi):**
+```bash
+gh secret set MONGO_URI --body "mongodb://dragon_db_admin:***@mongodb:27017/dragon-template-ai?authSource=admin" \
+  --repo dongitran/Dragon-Template-AI
+# => ✓
+
+gh secret set KEYCLOAK_CLIENT_SECRET --body "***" --repo dongitran/Dragon-Template-AI
+# => ✓
+
+gh secret set GEMINI_API_KEYS --body "***,***" --repo dongitran/Dragon-Template-AI
+# => ✓
+
+gh secret set CORS_ORIGIN --body "https://dragon-template.xyz" --repo dongitran/Dragon-Template-AI
+# => ✓
+
+gh secret set AI_PROVIDERS_CONFIG --body '{"providers":[{"id":"google","name":"Google Gemini","models":[...]}]}' \
+  --repo dongitran/Dragon-Template-AI
+# => ✓
+```
+- Tat ca secrets luu trong `secret.md` (gitignored), KHONG commit vao git
+- Dung `--repo` flag de chi dinh repo cu the
+
+**24d. Tao folder va files K8s:**
+```
+infra/gke/backend/
+├── deployment.yaml     # Backend Deployment (Express.js, port 3001)
+└── service.yaml        # NodePort Service (3001 -> 30010)
+```
+
+**Quyet dinh thiet ke:**
+| Quyet dinh | Ly do |
+|---|---|
+| Deployment (khong phai StatefulSet) | Backend la stateless app server |
+| NodePort 30010 | Tuong tu MongoDB/Keycloak, mien phi ($0) |
+| Secrets tu K8s Secret `backend-secret` | MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
+| Env direct values | BACKEND_PORT=3001, NODE_ENV=production, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID |
+| KEYCLOAK_URL = external URL | JWT issuer verification trong `auth.js` phai khop voi KC_HOSTNAME |
+| MONGO_URI dung internal K8s service | `mongodb:27017` (nhanh hon external IP) |
+| Recreate strategy | Chi 1 replica, tranh conflict |
+
+**Cau hinh deployment:**
+- Image: `asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest`
+- Port: 3001
+- Resources: CPU request 100m/limit 500m, Memory request 256Mi/limit 512Mi
+- Liveness probe: HTTP `/api/health`, initialDelaySeconds 30s, period 15s, timeout 5s
+- Readiness probe: HTTP `/api/health`, initialDelaySeconds 10s, period 10s, timeout 5s
+
+**24e. Cap nhat Ingress cho api.dragon-template.xyz:**
+
+Cap nhat `infra/gke/ingress/managed-cert.yaml` - them domain:
+```yaml
+spec:
+  domains:
+    - keycloak.dragon-template.xyz
+    - api.dragon-template.xyz        # Them moi
+```
+
+Cap nhat `infra/gke/ingress/ingress.yaml` - them rule:
+```yaml
+- host: api.dragon-template.xyz
+  http:
+    paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 3001
+```
+
+**24f. Them job `deploy-backend` vao `deploy-gke.yml`:**
+- Trigger: thay doi trong `backend/` hoac `infra/gke/backend/`
+- Them `backend/**` vao workflow paths trigger
+- Steps:
+  1. Auth GCP (WIF)
+  2. Configure Docker for Artifact Registry (`gcloud auth configure-docker`)
+  3. Build & push Docker image (tag: `${{ github.sha }}` + `latest`, target: `production`)
+  4. Get GKE credentials
+  5. Create K8s Secret `backend-secret` (5 fields tu GitHub Secrets)
+  6. Deploy manifests (`kubectl apply -f infra/gke/backend/`)
+  7. Wait for rollout (120s)
+  8. Show status
+
+**24g. Configure Docker for Artifact Registry:**
+```bash
+gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+# => Adding credentials for: asia-southeast1-docker.pkg.dev
+# => Docker configuration file updated.
+```
+
+**24h. Build & push Docker image lan 1 (THAT BAI - sai platform):**
+```bash
+docker build -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest \
+  --target production ./backend
+# => Build THANH CONG, nhung image la arm64 (Apple Silicon Mac)
+
+docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
+# => Push THANH CONG len Artifact Registry
+```
+
+**24i. Tao K8s Secret `backend-secret` (gap 4 lan loi):**
+
+**Lan 1 - THAT BAI: `command not found: kubectl`**
+```bash
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:$PATH"
+kubectl create secret generic backend-secret -n dragon ...
+# => command not found: kubectl
+```
+- **Nguyen nhan**: PATH chi co gcloud SDK, thieu kubectl tai `/opt/homebrew/bin`
+
+**Lan 2 - THAT BAI: `exactly one NAME is required, got 7`**
+```bash
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:$PATH"
+kubectl create secret generic backend-secret -n dragon \
+  --from-literal=MONGO_URI="mongodb://...?authSource=admin" \
+  --from-literal=KEYCLOAK_CLIENT_SECRET=*** ...
+# => error: exactly one NAME is required, got 7
+```
+- **Nguyen nhan**: Zsh split `--from-literal=MONGO_URI="..."` thanh nhieu arguments vi MONGO_URI chua ky tu dac biet (`?`, `=`, `@`)
+- **Fix**: Dung single quotes bao toan bo `--from-literal='KEY=VALUE'`
+
+**Lan 3 - THAT BAI: `readlink: command not found`**
+```bash
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:$PATH"
+kubectl create secret generic backend-secret -n dragon \
+  --from-literal='MONGO_URI=...' --from-literal='KEYCLOAK_CLIENT_SECRET=...' ...
+# => gcloud: line 72: readlink: command not found
+# => gcloud: line 86: dirname: command not found
+```
+- **Nguyen nhan**: PATH thieu `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin` - cac system utilities (`readlink`, `dirname`) khong tim thay
+- **Fix**: Them day du system paths vao PATH
+
+**Lan 4 - THANH CONG (nhung thieu AI_PROVIDERS_CONFIG):**
+```bash
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+kubectl create secret generic backend-secret -n dragon \
+  --from-literal='MONGO_URI=mongodb://***@mongodb:27017/dragon-template-ai?authSource=admin' \
+  --from-literal='KEYCLOAK_CLIENT_SECRET=***' \
+  --from-literal='GEMINI_API_KEYS=***' \
+  --from-literal='CORS_ORIGIN=https://dragon-template.xyz' \
+  --dry-run=client -o yaml | kubectl apply -f -
+# => secret/backend-secret created
+```
+
+**Verify - Phat hien thieu AI_PROVIDERS_CONFIG:**
+```bash
+kubectl get secret backend-secret -n dragon -o jsonpath='{.data}' | python3 -c "..."
+# CORS_ORIGIN: https://dragon-template.xyz
+# GEMINI_API_KEYS: ***
+# KEYCLOAK_CLIENT_SECRET: ***
+# MONGO_URI: mongodb://***@mongodb:27017/...
+# => THIEU AI_PROVIDERS_CONFIG!
+```
+
+**Xoa va tao lai voi du 5 fields:**
+```bash
+kubectl delete secret backend-secret -n dragon
+kubectl create secret generic backend-secret -n dragon \
+  --from-literal='MONGO_URI=mongodb://***@mongodb:27017/dragon-template-ai?authSource=admin' \
+  --from-literal='KEYCLOAK_CLIENT_SECRET=***' \
+  --from-literal='GEMINI_API_KEYS=***' \
+  --from-literal='CORS_ORIGIN=https://dragon-template.xyz' \
+  --from-literal='AI_PROVIDERS_CONFIG={"providers":[...]}'
+# => secret "backend-secret" deleted
+# => secret/backend-secret created
+```
+
+**24j. Deploy backend manifests va updated ingress:**
+```bash
+kubectl apply -f infra/gke/backend/
+# => deployment.apps/backend created
+# => service/backend created
+
+kubectl apply -f infra/gke/ingress/
+# => ingress.networking.k8s.io/dragon-ingress configured
+# => managedcertificate.networking.gke.io/dragon-cert configured
+```
+
+**24k. Rollout timeout - ImagePullBackOff:**
+```bash
+kubectl rollout status deployment/backend -n dragon --timeout=120s
+# => error: timed out waiting for the condition
+
+kubectl get pods -n dragon -l app=backend
+# NAME                       READY   STATUS             RESTARTS   AGE
+# backend-6c5fc664f4-dkc6w   0/1     ImagePullBackOff   0          2m38s
+
+kubectl describe pod -n dragon -l app=backend
+# Events:
+#   Warning  Failed  Failed to pull image: no match for platform in manifest: not found
+#   Warning  Failed  Error: ImagePullBackOff
+```
+- **Nguyen nhan**: Docker image build tren Mac Apple Silicon (arm64), GKE nodes la amd64
+- **Fix**: Rebuild voi `--platform linux/amd64`
+
+**24l. Rebuild Docker image voi dung platform (THANH CONG):**
+```bash
+docker build --platform linux/amd64 \
+  -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest \
+  --target production ./backend
+# => Build THANH CONG (linux/amd64)
+
+docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
+# => Push THANH CONG
+
+kubectl rollout restart deployment/backend -n dragon
+kubectl rollout status deployment/backend -n dragon --timeout=120s
+# => deployment "backend" successfully rolled out
+```
+
+**Luu y quan trong**: Khi build tren Mac (Apple Silicon), PHAI dung `--platform linux/amd64`. GitHub Actions runners da la amd64, khong can flag nay trong workflow.
+
+**24m. Verify backend hoat dong:**
+```bash
+kubectl get pods -n dragon
+# NAME                        READY   STATUS    RESTARTS   AGE
+# backend-769c6b584d-vk2ks    1/1     Running   0          41s
+# keycloak-854c5cb8cb-24s8m   1/1     Running   0          4h59m
+# mongodb-0                   1/1     Running   0          6h1m
+
+kubectl logs deployment/backend -n dragon --tail=20
+# > backend@1.0.0 start
+# > node src/index.js
+# ✅ Connected to MongoDB
+# 🚀 Backend server running on port 3001
+# GET /api/health 200 9.106 ms
+# GET /api/health 200 1.566 ms
+# GET /api/health 200 0.966 ms
+```
+
+**24n. Check ManagedCertificate (SSL re-provisioning):**
+```bash
+kubectl describe managedcertificate dragon-cert -n dragon
+# Status:
+#   Certificate Status:  Provisioning
+#   Domain Status:
+#     Domain: api.dragon-template.xyz      Status: Provisioning
+#     Domain: keycloak.dragon-template.xyz  Status: Provisioning
+# Events:
+#   Warning  BackendError  resourceInUseByAnotherResource
+#   Normal   Delete        Delete SslCertificate mcrt-228c3ba1-...
+#   Normal   Create        Create SslCertificate mcrt-228c3ba1-...
+```
+- GKE tu dong xoa cert cu va tao cert moi khi them domain
+- CA HAI domain chuyen ve "Provisioning" (keycloak tam thoi mat SSL)
+- Thoi gian re-provision: ~15-60 phut
+
+**24o. Setup DNS tai matbao.net:**
+```
+Type: A
+Host: api
+Value: 34.120.179.221
+TTL: 300
+```
+- User da them DNS truoc khi bat dau deploy
+
+**24p. Ket qua thanh cong:**
+- Backend pod: **1/1 Running**
+- Logs: `Connected to MongoDB` + `Backend server running on port 3001`
+- Health checks: `/api/health` tra ve **200 OK**
+- SSL cert: **Provisioning** (doi 15-60 phut)
+- Sau khi cert Active: **https://api.dragon-template.xyz** se hoat dong
+
+**24q. Troubleshooting tong hop (5 loi):**
+
+| # | Loi | Nguyen nhan | Cach fix |
+|---|-----|-------------|----------|
+| 1 | `command not found: kubectl` | PATH thieu `/opt/homebrew/bin` | Them vao PATH |
+| 2 | `exactly one NAME is required, got 7` | Zsh split `--from-literal` vi ky tu dac biet trong MONGO_URI | Dung single quotes `--from-literal='KEY=VALUE'` |
+| 3 | `readlink: command not found` | PATH thieu `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin` | Them day du system paths |
+| 4 | Secret thieu `AI_PROVIDERS_CONFIG` | Quen them khi tao secret lan dau | Xoa va tao lai voi du 5 fields |
+| 5 | `ImagePullBackOff` - platform mismatch | Build arm64 tren Mac, GKE nodes la amd64 | `docker build --platform linux/amd64` |
+
+---
+
 ## Ket qua cuoi cung (Updated)
 
 ### MongoDB on GKE
@@ -1143,14 +1450,28 @@ HTTPS required
 | CPU | request 100m, limit 500m |
 | Memory | request 512Mi, limit 1Gi |
 
+### Backend on GKE
+| Property | Value |
+|----------|-------|
+| Pod | backend-* (Deployment) |
+| Image | asia-southeast1-docker.pkg.dev/.../dragon-images/backend:latest |
+| Namespace | dragon |
+| Service | NodePort 30010 |
+| Domain | https://api.dragon-template.xyz |
+| CPU | request 100m, limit 500m |
+| Memory | request 256Mi, limit 512Mi |
+| Health check | /api/health (liveness 30s, readiness 10s) |
+| Env (direct) | BACKEND_PORT, NODE_ENV, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID |
+| Env (secret) | MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
+
 ### Ingress & SSL
 | Property | Value |
 |----------|-------|
-| Domain | keycloak.dragon-template.xyz |
-| DNS Provider | matbao.net (A record) |
+| Domains | keycloak.dragon-template.xyz, api.dragon-template.xyz |
+| DNS Provider | matbao.net (A records) |
 | Static IP | 34.120.179.221 (dragon-ingress-ip, global) |
 | Load Balancer | GCP HTTP(S) LB (auto by GKE Ingress) |
-| SSL Certificate | GCP Managed Certificate (auto-renew) |
+| SSL Certificate | GCP Managed Certificate (auto-renew, multi-domain) |
 | Ingress Class | gce (annotation-based) |
 | Chi phi | ~$18/thang |
 
@@ -1162,7 +1483,8 @@ HTTPS required
 | Service Account | dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com |
 | WIF Pool | dragon-github-pool |
 | WIF Provider | dragon-github-provider |
-| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD, KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD |
+| Docker Registry | Artifact Registry (asia-southeast1-docker.pkg.dev) |
+| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD, KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD, MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
 
 ---
 
@@ -1184,6 +1506,12 @@ HTTPS required
 | 20 | CSP error `http://https:` | `KC_HOSTNAME` co protocol `https://` | Chi dung hostname `keycloak.dragon-template.xyz` (khong co protocol) |
 | 21 | "HTTPS required" khi truy cap HTTP | Keycloak reject HTTP khi KC_HOSTNAME da set | Doi GCP Managed Certificate Active (~51 phut), dung HTTPS |
 | 22 | Connection reset sau khi tao Ingress | GCP LB can 2-3 phut tao forwarding rules | Doi 2-3 phut |
+| 23 | `command not found: kubectl` | PATH thieu `/opt/homebrew/bin` | Them `/opt/homebrew/bin` vao PATH |
+| 24 | `exactly one NAME is required, got 7` | Zsh split `--from-literal` vi ky tu dac biet (`?`, `=`, `@`) trong MONGO_URI | Dung single quotes `--from-literal='KEY=VALUE'` |
+| 25 | `readlink: command not found` (gke-gcloud-auth-plugin) | PATH thieu `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin` | Full PATH: `/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin` |
+| 26 | K8s Secret thieu `AI_PROVIDERS_CONFIG` | Quen them khi tao secret lan dau | `kubectl delete secret` + tao lai voi du 5 fields |
+| 27 | Docker image `ImagePullBackOff` - platform mismatch | Build arm64 tren Mac Apple Silicon, GKE nodes la amd64 | Rebuild voi `docker build --platform linux/amd64` |
+| 28 | ManagedCertificate `resourceInUseByAnotherResource` | Them domain moi vao cert da ton tai | GKE tu dong xoa/tao lai cert, doi ~15-60 phut re-provision |
 
 ---
 
@@ -1219,6 +1547,17 @@ kubectl get managedcertificates -n dragon
 kubectl describe managedcertificate dragon-cert -n dragon
 kubectl get managedcertificates -n dragon -o yaml
 
+# Backend: check logs & status
+kubectl logs deployment/backend -n dragon
+kubectl describe deployment backend -n dragon
+
+# Backend: build & push Docker image (tu Mac Apple Silicon)
+docker build --platform linux/amd64 \
+  -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest \
+  --target production ./backend
+docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
+kubectl rollout restart deployment/backend -n dragon
+
 # Destroy infrastructure
 PULUMI_CONFIG_PASSPHRASE="" pulumi destroy
 ```
@@ -1246,9 +1585,12 @@ infra/
 │   │   ├── deployment.yaml      # Keycloak Deployment (keycloak:24.0)
 │   │   ├── pvc.yaml             # PVC 1GB pd-standard
 │   │   └── service.yaml         # NodePort 30080
+│   ├── backend/
+│   │   ├── deployment.yaml      # Backend Deployment (Express.js, Artifact Registry)
+│   │   └── service.yaml         # NodePort 30010
 │   └── ingress/
-│       ├── managed-cert.yaml    # GCP Managed Certificate (auto SSL)
+│       ├── managed-cert.yaml    # GCP Managed Certificate (auto SSL, multi-domain)
 │       └── ingress.yaml         # GKE Ingress (HTTP(S) LB)
 └── .github/workflows/
-    └── deploy-gke.yml           # CI/CD: deploy-mongodb, deploy-ingress, deploy-keycloak
+    └── deploy-gke.yml           # CI/CD: deploy-mongodb, deploy-ingress, deploy-keycloak, deploy-backend
 ```

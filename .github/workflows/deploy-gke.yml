@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'infra/gke/**'
+      - 'backend/**'
 
   workflow_dispatch:
 
@@ -132,3 +133,64 @@ jobs:
           kubectl get pods -n dragon
           kubectl get svc -n dragon
           kubectl get pvc -n dragon
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(toJSON(github.event.commits.*.modified), 'backend/') || contains(toJSON(github.event.commits.*.modified), 'infra/gke/backend/')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/544685971138/locations/global/workloadIdentityPools/dragon-github-pool/providers/dragon-github-provider'
+          service_account: 'dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com'
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:${{ github.sha }} \
+            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest \
+            --target production \
+            ./backend
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: dragon-gke
+          location: asia-southeast1-a
+
+      - name: Create namespace
+        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Backend secret
+        run: |
+          kubectl create secret generic backend-secret -n dragon \
+            --from-literal=MONGO_URI="${{ secrets.MONGO_URI }}" \
+            --from-literal=KEYCLOAK_CLIENT_SECRET=${{ secrets.KEYCLOAK_CLIENT_SECRET }} \
+            --from-literal=GEMINI_API_KEYS="${{ secrets.GEMINI_API_KEYS }}" \
+            --from-literal=AI_PROVIDERS_CONFIG='${{ secrets.AI_PROVIDERS_CONFIG }}' \
+            --from-literal=CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Backend
+        run: |
+          kubectl set image deployment/backend backend=asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:${{ github.sha }} -n dragon 2>/dev/null || true
+          kubectl apply -f infra/gke/backend/
+
+      - name: Wait for Backend ready
+        run: kubectl rollout status deployment/backend -n dragon --timeout=120s
+
+      - name: Show status
+        run: |
+          kubectl get pods -n dragon
+          kubectl get svc -n dragon

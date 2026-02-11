@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: dragon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
+          ports:
+            - containerPort: 3001
+          env:
+            - name: BACKEND_PORT
+              value: "3001"
+            - name: NODE_ENV
+              value: "production"
+            - name: KEYCLOAK_URL
+              value: "https://keycloak.dragon-template.xyz"
+            - name: KEYCLOAK_REALM
+              value: "dragon"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "dragon-app"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: MONGO_URI
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: KEYCLOAK_CLIENT_SECRET
+            - name: GEMINI_API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GEMINI_API_KEYS
+            - name: AI_PROVIDERS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: AI_PROVIDERS_CONFIG
+            - name: CORS_ORIGIN
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: CORS_ORIGIN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
