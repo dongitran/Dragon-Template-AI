@@ -1,24 +1,38 @@
 const { GoogleGenAI } = require('@google/genai');
 
-// --- Configuration (REQUIRED from env) ---
-if (!process.env.GEMINI_IMAGE_MODEL) {
-    throw new Error('GEMINI_IMAGE_MODEL env variable is required. Set it to the image generation model name (e.g., gemini-2.5-flash-image)');
+// --- Configuration (lazy initialization - only validate when used) ---
+let configValidated = false;
+let IMAGE_MODEL, DEFAULT_ASPECT_RATIO, DEFAULT_STYLE, MAX_RETRIES, TIMEOUT_MS;
+
+/**
+ * Validate and initialize configuration from environment variables
+ * Only runs once, on first function call
+ */
+function ensureConfig() {
+    if (configValidated) return;
+
+    // Validate required env vars
+    if (!process.env.GEMINI_IMAGE_MODEL) {
+        throw new Error('GEMINI_IMAGE_MODEL env variable is required. Set it to the image generation model name (e.g., imagen-3.0-generate-001)');
+    }
+
+    if (!process.env.IMAGE_DEFAULT_ASPECT_RATIO) {
+        throw new Error('IMAGE_DEFAULT_ASPECT_RATIO env variable is required. Set it to a valid aspect ratio (e.g., 16:9)');
+    }
+
+    if (!process.env.IMAGE_DEFAULT_STYLE) {
+        throw new Error('IMAGE_DEFAULT_STYLE env variable is required. Set it to the default image style (e.g., professional)');
+    }
+
+    // Initialize config
+    IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL;
+    DEFAULT_ASPECT_RATIO = process.env.IMAGE_DEFAULT_ASPECT_RATIO;
+    DEFAULT_STYLE = process.env.IMAGE_DEFAULT_STYLE;
+    MAX_RETRIES = parseInt(process.env.IMAGE_MAX_RETRIES || '3', 10);
+    TIMEOUT_MS = parseInt(process.env.IMAGE_TIMEOUT_MS || '30000', 10);
+
+    configValidated = true;
 }
-
-if (!process.env.IMAGE_DEFAULT_ASPECT_RATIO) {
-    throw new Error('IMAGE_DEFAULT_ASPECT_RATIO env variable is required. Set it to a valid aspect ratio (e.g., 16:9)');
-}
-
-if (!process.env.IMAGE_DEFAULT_STYLE) {
-    throw new Error('IMAGE_DEFAULT_STYLE env variable is required. Set it to the default image style (e.g., professional)');
-}
-
-const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL;
-const DEFAULT_ASPECT_RATIO = process.env.IMAGE_DEFAULT_ASPECT_RATIO;
-const DEFAULT_STYLE = process.env.IMAGE_DEFAULT_STYLE;
-const MAX_RETRIES = parseInt(process.env.IMAGE_MAX_RETRIES || '3', 10);
-const TIMEOUT_MS = parseInt(process.env.IMAGE_TIMEOUT_MS || '30000', 10);
-
 
 // Valid aspect ratios
 const VALID_ASPECT_RATIOS = ['1:1', '16:9', '21:9', '9:16', '4:3'];
@@ -82,6 +96,7 @@ function validateAspectRatio(aspectRatio) {
  * @returns {Promise<Object>} { buffer: Buffer, mimeType: string, text?: string }
  */
 async function generateImage(prompt, options = {}) {
+    ensureConfig();  // Validate env vars on first use
     const startTime = Date.now();
 
     // Validate prompt
@@ -200,6 +215,7 @@ async function generateImageWithRetry(prompt, options = {}, maxRetries = MAX_RET
  * @returns {Promise<Array<Object>>} Array of {id, buffer, mimeType, text?, error?}
  */
 async function generateMultipleImages(prompts, globalOptions = {}) {
+    ensureConfig();  // Validate env vars on first use
     console.log(`[ImageGen] Generating ${prompts.length} images in parallel...`);
     const startTime = Date.now();
 
