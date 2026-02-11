@@ -2,10 +2,10 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
     testDir: './tests',
-    fullyParallel: false,
+    fullyParallel: true,  // ✅ Enable parallel execution
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
-    workers: 1,
+    workers: process.env.CI ? 4 : 2,  // ✅ 4 workers in CI, 2 local
     reporter: process.env.CI ? 'github' : 'list',
 
     use: {
