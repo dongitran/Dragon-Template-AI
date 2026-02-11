@@ -141,9 +141,27 @@ Generate realistic, detailed, professional content for each section. Be specific
         }],
     });
 
-    for await (const chunk of result.stream) {
-        const text = chunk.text();
-        if (text) yield text;
+    // Defensive check: ensure result exists
+    if (!result) {
+        throw new Error('Gemini API returned undefined result');
+    }
+
+    // Handle both SDK patterns: result.stream or result itself being iterable
+    const streamSource = result.stream || result;
+
+    if (!streamSource) {
+        console.error('[generatePlanContentStream] result structure:', Object.keys(result));
+        throw new Error('Gemini API result is not iterable');
+    }
+
+    try {
+        for await (const chunk of streamSource) {
+            const text = chunk.text();
+            if (text) yield text;
+        }
+    } catch (error) {
+        console.error('[generatePlanContentStream] Stream iteration error:', error.message);
+        throw new Error(`Failed to iterate stream: ${error.message}`);
     }
 }
 
