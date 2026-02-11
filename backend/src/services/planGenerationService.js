@@ -1,5 +1,7 @@
 const { GoogleGenAI } = require('@google/genai');
 const Document = require('../models/Document');
+const { generateMultipleImages } = require('./imageGenerationService');
+const storageService = require('./storageService');
 
 /**
  * Generate a project plan via AI
@@ -31,13 +33,14 @@ async function generateProjectPlan(prompt, options = {}, userId, sessionId = nul
     let uploadedImages = [];
     if (options.includeImages !== false && imagePlaceholders.length > 0) {
         console.log('[planGeneration] Step 3: Generating images via Gemini');
-        // TODO: Phase 8.2 - Implement image generation
-        // const generatedImages = await generatePlanImages(imagePlaceholders);
+        const generatedImages = await generatePlanImages(
+            imagePlaceholders,
+            { imageStyle: options.imageStyle || 'professional' }
+        );
 
         // Step 4: Upload images to GCS
         console.log('[planGeneration] Step 4: Uploading images to GCS');
-        // TODO: Phase 8.2 - Implement GCS upload
-        // uploadedImages = await uploadImagesToGCS(generatedImages, userId);
+        uploadedImages = await uploadImagesToGCS(generatedImages, userId);
     }
 
     // Step 5: Replace placeholders with actual image URLs
@@ -226,6 +229,98 @@ function extractTitle(markdown) {
     return match ? match[1] : null;
 }
 
+/**
+ * Generate images for plan placeholders using Gemini Imagen
+ * @param {Array<Object>} placeholders - Array of {id, description, placeholder}
+ * @param {Object} options - Generation options
+ * @returns {Promise<Array<Object>>} Array of {id, description, buffer, mimeType}
+ */
+async function generatePlanImages(placeholders, options = {}) {
+    if (!placeholders || placeholders.length === 0) {
+        return [];
+    }
+
+    const { imageStyle = 'professional' } = options;
+
+    try {
+        // Build enhanced prompts with style prefix
+        const promptObjects = placeholders.map(p => ({
+            id: p.id,
+            description: `${imageStyle} style, high quality: ${p.description}`,
+        }));
+
+        console.log(`[planGeneration] Generating ${promptObjects.length} images in parallel`);
+
+        // Generate all images in parallel
+        const imageResults = await generateMultipleImages(promptObjects, {
+            aspectRatio: '16:9',
+            retries: 3,
+        });
+
+        // Filter out failed images and return successful ones
+        const successfulImages = imageResults.filter(r => !r.error);
+        console.log(`[planGeneration] Successfully generated ${successfulImages.length}/${imageResults.length} images`);
+
+        return successfulImages;
+    } catch (error) {
+        console.error('[planGeneration] Error generating images:', error);
+        // Return empty array on failure (graceful degradation)
+        return [];
+    }
+}
+
+/**
+ * Upload generated images to GCS and return asset metadata
+ * @param {Array<Object>} images - Array of {id, description, buffer, mimeType}
+ * @param {string} userId - User ID for GCS path organization
+ * @returns {Promise<Array<Object>>} Array of asset metadata for Document model
+ */
+async function uploadImagesToGCS(images, userId) {
+    if (!images || images.length === 0) {
+        return [];
+    }
+
+    try {
+        const uploadPromises = images.map(async (img) => {
+            // Determine file extension from mimeType
+            const ext = img.mimeType === 'image/png' ? 'png' : 'jpg';
+            const filename = `plan-image-${img.id}.${ext}`;
+
+            // Upload to GCS
+            const uploadResult = await storageService.uploadFile(
+                img.buffer,
+                filename,
+                img.mimeType,
+                userId
+            );
+
+            // Generate signed download URL (valid for 7 days)
+            const downloadUrl = await storageService.getSignedDownloadUrl(
+                uploadResult.fileId,
+                7 * 24 * 60 * 60 * 1000 // 7 days in ms
+            );
+
+            // Return in Document.assets format with id for placeholder replacement
+            return {
+                id: img.id,                       // Keep ID for placeholder replacement
+                assetId: uploadResult.gcsUrl,     // gs:// URL
+                assetUrl: downloadUrl,            // Signed https:// URL
+                assetType: 'image',
+                description: img.description,
+            };
+        });
+
+        const uploadedAssets = await Promise.all(uploadPromises);
+        console.log(`[planGeneration] Uploaded ${uploadedAssets.length} images to GCS`);
+
+        return uploadedAssets;
+    } catch (error) {
+        console.error('[planGeneration] Error uploading images to GCS:', error);
+        // Return empty array on failure
+        return [];
+    }
+}
+
 module.exports = {
     generateProjectPlan,
     generatePlanContent,
@@ -233,4 +328,6 @@ module.exports = {
     replacePlaceholders,
     markdownToBlockNote,
     extractTitle,
+    generatePlanImages,
+    uploadImagesToGCS,
 };

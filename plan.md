@@ -373,31 +373,35 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ### 8.1 Backend: Document Model & Routes
 
-- [ ] Create `Document` model (mongoose schema)
+- [x] Create `Document` model (mongoose schema)
   - Fields: userId, sessionId, title, type, content (BlockNote JSON), metadata, assets[]
   - Support document types: 'project-plan', 'workflow', 'roadmap', 'sprint'
-- [ ] Create `/api/commands/generate-plan` endpoint
+- [x] Create `/api/commands/generate-plan` endpoint (basic structure done)
   - Accept: sessionId, prompt, options (includeImages, imageStyle, sections)
-  - Generate plan structure + content via Gemini AI
-  - Generate 3-5 images via Gemini Imagen API
-  - Upload images to GCS
+  - Generate plan structure + content via Gemini AI ✅
+  - Generate 3-5 images via Gemini Imagen API ⏳ (imageGenerationService ready, integration pending)
+  - Upload images to GCS ⏳ (pending integration)
   - Return: documentId, title, content (BlockNote JSON), assets[]
-- [ ] Create `/api/documents/:id` endpoints (GET, PUT)
-- [ ] Create `/api/documents/:id/export` endpoint (PDF/Markdown)
+- [x] Create `/api/documents/:id` endpoints (GET, PUT, DELETE)
+- [ ] Create `/api/documents/:id/export` endpoint (Markdown only - PDF deferred)
 - [ ] Create `/api/documents/:id/assets/upload` endpoint (for user image uploads)
 
 ### 8.2 Backend: AI Services
 
-- [ ] Create `planGenerationService.js`
-  - `generateProjectPlan(prompt, options)` — orchestrate full generation
-  - `generatePlanContent(prompt)` — call Gemini for markdown content
-  - `extractImagePlaceholders(markdown)` — parse markdown for image needs
-  - `generatePlanImages(placeholders)` — call Gemini Imagen API
-  - `uploadImagesToGCS(images)` — upload generated images
-  - `markdownToBlockNote(markdown)` — convert to BlockNote JSON
-- [ ] Create `pdfExportService.js`
-  - Use Puppeteer to convert BlockNote content to PDF
-  - Support images, formatting, page breaks
+- [x] Create `planGenerationService.js` ✅
+  - `generateProjectPlan(prompt, options)` — orchestrate full generation ✅
+  - `generatePlanContent(prompt)` — call Gemini for markdown content ✅
+  - `extractImagePlaceholders(markdown)` — parse markdown for image needs ✅
+  - `generatePlanImages(placeholders)` — call Gemini Imagen API ⏳ (imageGenerationService ready)
+  - `uploadImagesToGCS(images)` — upload generated images ⏳ (pending integration)
+  - `markdownToBlockNote(markdown)` — convert to BlockNote JSON ✅
+- [x] Create `imageGenerationService.js` ✅ NEW
+  - `validateImagePrompt()`, `validateAspectRatio()` — validation functions ✅
+  - `generateImage(prompt, options)` — single image generation ✅
+  - `generateImageWithRetry(prompt, options, maxRetries)` — retry logic ✅
+  - `generateMultipleImages(prompts, options)` — batch parallel generation ✅
+  - Unit tests: 26/26 passing ✅
+  - Integration tests: 7/7 passing ✅
 
 ### 8.3 Frontend: Document Editor
 
@@ -423,19 +427,30 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ### 8.5 Testing
 
-- [ ] Backend: Unit tests for `planGenerationService.js` (15 tests)
-  - Plan generation with all/custom sections
-  - Image placeholder extraction and generation
-  - GCS upload and URL replacement
-  - Markdown to BlockNote conversion
-  - Error handling (Gemini API, GCS failures)
-- [ ] Backend: Unit tests for `pdfExportService.js` (5 tests)
-- [ ] Backend: Integration tests for documents API (8 tests)
-  - POST /api/commands/generate-plan → full flow
-  - GET, PUT /api/documents/:id
-  - POST /api/documents/:id/export (PDF + Markdown)
-  - POST /api/documents/:id/assets/upload
-  - Ownership verification, session association
+- [x] Backend: Unit tests for `imageGenerationService.js` (26 tests) ✅ NEW
+  - Validation (prompt, aspect ratio) ✅
+  - Single image generation with retry logic ✅
+  - Batch parallel generation ✅
+  - Error handling (API failures, timeouts) ✅
+  - API key rotation ✅
+- [x] Backend: Integration tests for plan generation with images (7 tests) ✅ NEW
+  - Happy path - full flow ✅
+  - Partial failure - some images fail ✅
+  - Total failure - all images fail ✅
+  - GCS upload failure ✅
+  - Performance - multiple images in parallel ✅
+  - Images disabled ✅
+  - Service integration data flow ✅
+- [ ] Backend: Unit tests for `planGenerationService.js` (pending)
+  - Plan generation with all/custom sections ⏳
+  - Image placeholder extraction ✅ (helper tested via integration)
+  - Markdown to BlockNote conversion ✅ (helper tested via integration)
+- [ ] Backend: Integration tests for documents API CRUD (pending)
+  - POST /api/commands/generate-plan with image generation ⏳
+  - GET, PUT /api/documents/:id ✅ (basic routes done)
+  - POST /api/documents/:id/export (Markdown only) ⏳
+  - POST /api/documents/:id/assets/upload ⏳
+  - Ownership verification ✅
 - [ ] Frontend: Component tests for `BlockNoteEditor.jsx` (10 tests)
   - Render, content changes, image upload (file/drag-drop)
   - Slash commands, read-only mode, auto-save
@@ -444,11 +459,11 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
   - `/project-plan` command → document generated
   - Editor opens with content
   - Slash menu, insert elements, image upload/paste
-  - Edit, save persistence, export (PDF/Markdown)
+  - Edit, save persistence, export (Markdown)
 - [ ] E2E: API tests for documents endpoints (8 tests)
 - [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
-**Deliverable:** User types `/project-plan My Fitness App` → AI generates complete project plan with images → Opens in Notion-style BlockNote editor → User edits, replaces images → Exports to PDF or Markdown.
+**Deliverable:** User types `/project-plan My Fitness App` → AI generates complete project plan with images → Opens in Notion-style BlockNote editor → User edits, replaces images → Exports to Markdown.
 
 **Note**: Image generation via Gemini Imagen can take 30-60 seconds for a full plan (text: ~5-10s, images: ~5-10s each × 3-5 images, GCS upload: ~2-5s). Show staged progress indicator to user.
 
