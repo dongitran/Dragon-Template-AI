@@ -80,13 +80,13 @@ describe('Session Model', () => {
         ).rejects.toThrow();
     });
 
-    it('should require message content', async () => {
-        await expect(
-            Session.create({
-                userId: 'user-123',
-                messages: [{ role: 'user' }],
-            })
-        ).rejects.toThrow();
+    it('should allow message without content (Phase 7: attachments-only messages)', async () => {
+        const session = await Session.create({
+            userId: 'user-123',
+            messages: [{ role: 'user' }],
+        });
+        expect(session.messages).toHaveLength(1);
+        expect(session.messages[0].content).toBe('');
     });
 
     it('should require message role', async () => {

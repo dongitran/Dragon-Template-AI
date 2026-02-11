@@ -76,6 +76,58 @@ function resolveModel(modelString) {
 }
 
 // --- Streaming Chat ---
+const { downloadFileToBuffer } = require('./storageService');
+
+/**
+ * Build multimodal parts array for a message.
+ * For the latest user message with attachments: download files from GCS and send as inlineData.
+ * For historical messages: include a text note about attachments but don't re-send binary data.
+ *
+ * @param {object} msg - Message object { role, content, attachments }
+ * @param {boolean} isLatestUserMessage - Whether this is the newest user message
+ * @returns {Promise<Array>} - Gemini parts array
+ */
+async function buildParts(msg, isLatestUserMessage) {
+    const parts = [];
+
+    // Only download and send file data for the latest user message
+    if (isLatestUserMessage && msg.attachments && msg.attachments.length > 0) {
+        for (const attachment of msg.attachments) {
+            try {
+                const buffer = await downloadFileToBuffer(attachment.fileId);
+                const base64Data = buffer.toString('base64');
+                parts.push({
+                    inlineData: {
+                        mimeType: attachment.fileType,
+                        data: base64Data,
+                    },
+                });
+            } catch (err) {
+                console.error(`[AI Provider] Failed to download attachment ${attachment.fileId}:`, err.message);
+                parts.push({ text: `[File: ${attachment.fileName} — could not be loaded]` });
+            }
+        }
+    } else if (msg.attachments && msg.attachments.length > 0) {
+        // Historical message with attachments — add text context
+        const fileNames = msg.attachments.map(a => a.fileName).join(', ');
+        parts.push({ text: `[Previously attached files: ${fileNames}]` });
+    }
+
+    // Add text content
+    const text = msg.content || '';
+    if (text) {
+        parts.push({ text });
+    } else if (parts.length === 0) {
+        // No text and no attachments — shouldn't happen, but fallback
+        parts.push({ text: '(empty message)' });
+    } else if (!text && isLatestUserMessage && msg.attachments && msg.attachments.length > 0) {
+        // File-only message — add a default prompt
+        parts.push({ text: 'Please analyze and describe the content of the attached file(s).' });
+    }
+
+    return parts;
+}
+
 async function* streamChat(providerId, modelId, messages) {
     if (providerId !== 'google') {
         throw new Error(`Unsupported provider: ${providerId}. Currently only 'google' is supported.`);
@@ -85,13 +137,28 @@ async function* streamChat(providerId, modelId, messages) {
     const ai = new GoogleGenAI({ apiKey });
 
     // Convert messages to Gemini format
-    // Gemini expects: { role: 'user'|'model', parts: [{ text }] }
+    // Gemini expects: { role: 'user'|'model', parts: [{ text }] or [{ inlineData }, { text }] }
     const systemInstruction = 'You are Dragon AI, a helpful, friendly, and knowledgeable assistant. Respond in markdown format when appropriate. Be concise but thorough.';
 
-    const contents = messages.map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
-    }));
+    // Find the last user message index for multimodal handling
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+            lastUserIdx = i;
+            break;
+        }
+    }
+
+    const contents = [];
+    for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        const isLatestUser = (i === lastUserIdx);
+        const parts = await buildParts(msg, isLatestUser);
+        contents.push({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts,
+        });
+    }
 
     const response = await ai.models.generateContentStream({
         model: modelId,

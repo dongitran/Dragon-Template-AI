@@ -91,8 +91,50 @@ function ChatPage() {
         }
     };
 
-    const handleSend = useCallback(async (text) => {
-        const userMessage = { role: 'user', content: text };
+    // Upload files to backend, returns attachment metadata array
+    const uploadFiles = async (files) => {
+        if (!files || files.length === 0) return [];
+
+        const formData = new FormData();
+        for (const file of files) {
+            formData.append('files', file);
+        }
+
+        const res = await fetch(`${API_BASE}/api/upload`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'File upload failed');
+        }
+
+        const data = await res.json();
+        return data.files;
+    };
+
+    const handleSend = useCallback(async (text, files = []) => {
+        const userMessage = { role: 'user', content: text || '' };
+
+        // Upload files first if any
+        let attachments = [];
+        if (files.length > 0) {
+            try {
+                attachments = await uploadFiles(files);
+                userMessage.attachments = attachments;
+            } catch (err) {
+                console.error('Upload failed:', err);
+                setMessages(prev => [
+                    ...prev,
+                    { role: 'user', content: text || '' },
+                    { role: 'assistant', content: `**Upload Error:** ${err.message}` },
+                ]);
+                return;
+            }
+        }
+
         const updatedMessages = [...messages, userMessage];
         setMessages(updatedMessages);
         setIsStreaming(true);
@@ -108,17 +150,15 @@ function ChatPage() {
 
         // Start character-by-character display loop
         const startTyping = () => {
-            if (typingInterval) return; // Already running
+            if (typingInterval) return;
             const charsPerSec = parseInt(import.meta.env.VITE_CHAT_TYPING_SPEED || '20', 10);
-            const intervalMs = 1000 / charsPerSec; // Convert to ms per char
+            const intervalMs = 1000 / charsPerSec;
 
             typingInterval = setInterval(() => {
                 if (charQueue.length > 0) {
-                    // Take next character from queue
                     displayedContent += charQueue[0];
                     charQueue = charQueue.slice(1);
 
-                    // Update UI
                     setMessages(prev => {
                         const updated = [...prev];
                         updated[updated.length - 1] = {
@@ -139,12 +179,21 @@ function ChatPage() {
         };
 
         try {
+            // Build request messages — include attachments metadata
+            const requestMessages = updatedMessages.map(msg => {
+                const m = { role: msg.role, content: msg.content || '' };
+                if (msg.attachments && msg.attachments.length > 0) {
+                    m.attachments = msg.attachments;
+                }
+                return m;
+            });
+
             const res = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
-                    messages: updatedMessages,
+                    messages: requestMessages,
                     model: selectedModel,
                     sessionId: sessionId || undefined,
                 }),
@@ -183,10 +232,8 @@ function ChatPage() {
                     try {
                         const parsed = JSON.parse(data);
 
-                        // Handle sessionId event (first event from backend)
                         if (parsed.sessionId) {
                             setSessionId(parsed.sessionId);
-                            // Update URL without reload
                             navigate(`/chat/${parsed.sessionId}`, { replace: true });
                             continue;
                         }
@@ -194,7 +241,6 @@ function ChatPage() {
                         if (parsed.error) {
                             charQueue += `\n\n**Error:** ${parsed.error}`;
                         } else if (parsed.chunk) {
-                            // Add chunk to character queue
                             charQueue += parsed.chunk;
                         }
                     } catch {
@@ -221,7 +267,6 @@ function ChatPage() {
             });
 
             // Refresh session title in case it was auto-generated
-            // Use a callback to get the latest sessionId from state
             setTimeout(() => {
                 setSessionId(currentSid => {
                     if (currentSid) {
@@ -234,13 +279,12 @@ function ChatPage() {
                             })
                             .catch(() => { });
                     }
-                    return currentSid; // Don't change the state
+                    return currentSid;
                 });
-            }, 3000); // Wait 3s for title generation
+            }, 3000);
         } catch (err) {
             stopTyping();
             if (err.name === 'AbortError') {
-                // User cancelled — keep partial content, do final render
                 setMessages(prev => {
                     const updated = [...prev];
                     updated[updated.length - 1] = {

@@ -84,8 +84,8 @@ describe('Rate Limiting', () => {
     });
 
     describe('Body size limit', () => {
-        it('should reject payloads larger than 10kb', async () => {
-            const largePayload = { data: 'x'.repeat(20000) };
+        it('should reject payloads larger than 5mb', async () => {
+            const largePayload = { data: 'x'.repeat(6 * 1024 * 1024) };
 
             const res = await request(app)
                 .post('/api/auth/login')

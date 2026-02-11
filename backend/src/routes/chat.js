@@ -21,10 +21,13 @@ router.post('/', authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'messages array is required and must not be empty' });
     }
 
-    // Validate each message has role and content
+    // Validate each message has role and content (or attachments)
     for (const msg of messages) {
-        if (!msg.role || !msg.content) {
-            return res.status(400).json({ error: 'Each message must have role and content' });
+        if (!msg.role) {
+            return res.status(400).json({ error: 'Each message must have a role' });
+        }
+        if (!msg.content && (!msg.attachments || msg.attachments.length === 0)) {
+            return res.status(400).json({ error: 'Each message must have content or attachments' });
         }
         if (!['user', 'assistant'].includes(msg.role)) {
             return res.status(400).json({ error: 'Message role must be "user" or "assistant"' });
@@ -64,10 +67,15 @@ router.post('/', authMiddleware, async (req, res) => {
         // Save the latest user message to session
         const lastUserMsg = messages[messages.length - 1];
         if (lastUserMsg && lastUserMsg.role === 'user') {
-            session.messages.push({
+            const msgData = {
                 role: lastUserMsg.role,
-                content: lastUserMsg.content,
-            });
+                content: lastUserMsg.content || '',
+            };
+            // Include attachments if present
+            if (lastUserMsg.attachments && lastUserMsg.attachments.length > 0) {
+                msgData.attachments = lastUserMsg.attachments;
+            }
+            session.messages.push(msgData);
             session.model = modelString;
             await session.save();
         }

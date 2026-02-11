@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const attachmentSchema = new mongoose.Schema({
+    fileId: { type: String, required: true },      // GCS object path
+    fileName: { type: String, required: true },     // original filename
+    fileType: { type: String, required: true },     // MIME type
+    fileSize: { type: Number, required: true },     // bytes
+    gcsUrl: { type: String, required: true },       // gs:// URL for backend
+    downloadUrl: { type: String, required: true },  // API URL for frontend
+}, { _id: false });
+
 const messageSchema = new mongoose.Schema({
     role: {
         type: String,
@@ -8,7 +17,11 @@ const messageSchema = new mongoose.Schema({
     },
     content: {
         type: String,
-        required: true,
+        default: '',
+    },
+    attachments: {
+        type: [attachmentSchema],
+        default: [],
     },
 }, {
     timestamps: { createdAt: true, updatedAt: false },

@@ -181,7 +181,182 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 7: Command — Generate Project Plan
+## Phase 7: File Upload & Multimodal Chat
+
+**Goal:** Enable users to upload files (images, PDFs, CSVs) and send them alongside text messages to the AI, similar to ChatGPT/Claude. Files are stored on Google Cloud Storage (GCS) and users can download previously uploaded files.
+
+### 7.1 Backend: GCS Upload Service
+
+- [x] Install `@google-cloud/storage` and `multer` packages
+- [x] Create `services/storageService.js` — GCS client initialization
+  - Initialize with `GCS_CREDENTIALS` env var (JSON string of service account key)
+  - Bucket: `dragon-template-storage`
+  - Configure: auto-detect content type, set file metadata
+- [x] Create `routes/upload.js` — file upload REST API
+  - `POST /api/upload` — upload file to GCS (auth required)
+    - Accept `multipart/form-data` with field name `file`
+    - Use `multer` with `memoryStorage` (file in memory buffer, pipe to GCS)
+    - Validate file type: only `pdf`, `csv`, `png`, `jpg`, `jpeg` allowed
+    - Validate file size: max configurable via `MAX_UPLOAD_SIZE_MB` env var (default: `1`)
+    - GCS path pattern: `uploads/{userId}/{timestamp}_{originalFilename}`
+    - Set GCS metadata: `contentType`, `originalName`, `uploadedBy`
+    - Return: `{ fileId, fileName, fileType, fileSize, gcsUrl, downloadUrl }`
+  - `GET /api/upload/:fileId/download` — generate signed download URL (auth required)
+    - Generate GCS signed URL (1 hour expiry) for the file
+    - Validate user ownership before generating URL
+- [x] Add env vars to `backend/.env`:
+  - `GCS_CREDENTIALS` — full JSON service account key (from `secret.md`)
+  - `GCS_BUCKET` — `dragon-template-storage`
+  - `MAX_UPLOAD_SIZE_MB` — max upload file size in MB (default: `1`)
+- [x] Register upload routes in `server.js`
+
+### 7.2 Backend: Multimodal Chat Integration
+
+- [x] Modify `Session` model (`models/Session.js`) — add file attachments to messages
+  - Add optional `attachments` array to `messageSchema`:
+    ```
+    attachments: [{
+      fileId: String,      // unique ID (GCS object name)
+      fileName: String,    // original filename
+      fileType: String,    // MIME type
+      fileSize: Number,    // bytes
+      gcsUrl: String,      // gs:// URL for backend use
+      downloadUrl: String, // API URL for frontend download
+    }]
+    ```
+  - Keep `content` field as text portion (can be empty if file-only message)
+  - Make `content` no longer required (user can send file without text)
+- [x] Modify `services/aiProvider.js` — support multimodal `parts` in Gemini API
+  - Update `streamChat()` to accept `attachments` parameter
+  - For each attachment in the latest user message:
+    - Download file from GCS to memory (Buffer)
+    - Convert to base64 string
+    - Build Gemini multimodal `parts` array:
+      ```javascript
+      parts: [
+        { inlineData: { mimeType: 'image/png', data: base64String } },  // file
+        { text: 'user prompt text' }  // text (if provided)
+      ]
+      ```
+    - Supported mimeTypes: `image/png`, `image/jpeg`, `application/pdf`, `text/csv`
+  - Handle file-only messages (no text): add default prompt "Describe this file" or "Analyze this content"
+- [x] Modify `routes/chat.js` — accept attachments in request body
+  - Accept `attachments` array in each message object within `messages[]`
+  - Pass attachments to `streamChat()` for multimodal processing
+  - Save attachments in session message record
+
+### 7.3 Frontend: Upload Button & File Preview
+
+- [x] Modify `ChatInput.jsx` — replace disabled "+Tools" button with functional upload
+  - Replace `+` button with paperclip/attachment icon (`PaperClipOutlined` from Ant Design)
+  - Add hidden `<input type="file" accept=".pdf,.csv,.png,.jpg,.jpeg" multiple />` element
+  - Click paperclip → trigger file input
+  - Support multiple file selection (max 5 files per message)
+  - On file select → show file preview chips above textarea:
+    - Image files: thumbnail preview (50x50 with object-fit)
+    - PDF/CSV: file icon + filename + file size
+    - Each chip has `×` remove button
+  - Manage `pendingFiles` state (array of `{ file, preview }` objects)
+  - On send (Enter or click Send):
+    - If pendingFiles exist → upload each to `POST /api/upload` first
+    - Then send chat message with `attachments` array containing upload responses
+    - Clear pendingFiles after send
+  - Allow send with files-only (no text) or files + text together
+  - Show upload progress indicator per file
+  - Drag-and-drop file support on chat input area
+  - Paste image from clipboard support (`onPaste` event)
+
+### 7.4 Frontend: File Display in Chat Messages
+
+- [x] Modify `ChatMessage.jsx` — render file attachments in messages
+  - Check `message.attachments` array
+  - For image attachments (`png`, `jpg`, `jpeg`):
+    - Render inline image (max-width: 400px, border-radius, clickable to download)
+    - Click → open in new tab or download
+  - For PDF attachments:
+    - Render file card with PDF icon, filename, file size
+    - Click → download via `GET /api/upload/:fileId/download`
+  - For CSV attachments:
+    - Render file card with CSV icon, filename, file size
+    - Click → download
+  - Download button/icon on hover for all file types
+  - Style: file cards with soft background, border, consistent with chat theme
+
+### 7.5 Frontend: ChatPage Integration
+
+- [x] Modify `ChatPage.jsx` — wire upload flow into `handleSend`
+  - Accept `pendingFiles` from `ChatInput` in `handleSend(text, files)`
+  - Upload files first, collect upload responses
+  - Build message with `attachments` array
+  - Display user message with file previews immediately (optimistic UI)
+  - Handle upload errors gracefully (toast notification)
+- [x] Modify `loadSession()` — load attachments from session data
+  - Existing sessions with file messages display files correctly on reload
+
+### 7.6 Testing
+
+- [ ] Backend: Unit tests for storage service
+  - GCS upload mock, file validation (type, size), signed URL generation
+- [ ] Backend: Unit tests for upload routes
+  - Upload success, invalid file type, file too large, unauthorized
+- [ ] Backend: Unit tests for multimodal chat
+  - Message with attachments, file-only message, mixed text+file
+- [ ] Backend: Integration tests for upload → chat flow
+- [ ] E2E: UI tests for file upload
+  - Click paperclip → select file → preview → send
+  - Upload + text message combined
+  - File-only message
+  - Download file from chat history
+  - Drag-and-drop upload
+  - Invalid file type rejection
+- [ ] E2E: API tests for upload and multimodal endpoints
+- [ ] Run all tests, fix failures, verify coverage ≥ 95%
+
+### 7.7 Manual Browser Testing
+
+- [ ] Start local environment (`docker-compose up`)
+- [ ] Open browser → login → navigate to chat
+- [ ] Test upload button: click paperclip → select image (png/jpg) → verify preview chip appears
+- [ ] Test send image + text: attach image + type message → Enter → verify AI responds about the image
+- [ ] Test send file only: attach PDF → Enter (no text) → verify AI analyzes the PDF content
+- [ ] Test send CSV: attach CSV → Enter → verify AI reads and responds about CSV data
+- [ ] Test invalid file: try uploading `.exe` or `.zip` → verify rejection message
+- [ ] Test file size limit: upload file > 1MB → verify rejection with clear error
+- [ ] Test download: click on uploaded file in chat history → verify file downloads correctly
+- [ ] Test drag-and-drop: drag image onto chat input → verify preview appears
+- [ ] Test paste from clipboard: copy image → Ctrl+V in chat → verify preview appears
+- [ ] Test multiple files: attach 2-3 files at once → send → verify all display in message
+- [ ] Test session reload: refresh page → verify file attachments still visible in chat history
+- [ ] Test on GKE production: deploy and repeat key scenarios on `https://dragon-template.xyz`
+
+**Deliverable:** Users can upload images, PDFs, and CSVs alongside chat messages. AI analyzes uploaded files and responds contextually. Users can download any previously uploaded file from chat history.
+
+**Code Changes Required (existing files):**
+
+> These are specific changes to existing code that must be addressed during implementation. Each item references the exact file and line.
+
+| Priority | File | Line | Current | Required Change |
+|----------|------|------|---------|----------------|
+| 🔴 | `models/Session.js` | 10 | `content: { required: true }` | Change to `required: false` or `default: ''` — allow file-only messages |
+| 🔴 | `routes/chat.js` | 27-28 | Rejects messages without `content` | Allow `content` empty if `attachments` array exists |
+| 🔴 | `services/aiProvider.js` | 92-97 | `parts: [{ text: msg.content }]` only | Refactor to build multimodal `parts[]` with `inlineData` + `text` |
+| 🔴 | `routes/sessions.js` | 86-91 | Maps only `role, content, createdAt` | Add `attachments` to GET `/:id` response mapping |
+| 🟡 | `app.js` | 28 | `express.json({ limit: '10kb' })` | Keep for JSON routes; upload route uses `multer` (multipart) so no conflict, but may need to raise limit if `attachments` metadata in chat request exceeds 10kb |
+| 🟡 | `ChatInput.jsx` | 63-65 | `<button disabled>` with `cursor: not-allowed` | Replace with active paperclip button triggering file input |
+| 🟡 | `ChatMessage.jsx` | 20-21 | User message renders `content` text only | Add attachments rendering (images inline, PDF/CSV as cards) above text |
+| 🟡 | `ChatPage.jsx` | 94 | `handleSend(text)` — text only | Change to `handleSend(text, files)` to accept pending files |
+
+**Technical Notes:**
+- GCS bucket: `dragon-template-storage` (asia-southeast1)
+- Service account: `dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com`
+- Env var `GCS_CREDENTIALS` stores the full service account JSON key
+- Gemini API supports multimodal via `inlineData` in `parts[]` array
+- Files are fetched from GCS by backend before sending to Gemini (not sent directly by frontend)
+- Max file size: configurable via `MAX_UPLOAD_SIZE_MB` env var (default: 1MB)
+
+---
+
+## Phase 8: Command — Generate Project Plan
 
 **Goal:** Add the "Generate Project Plan" command that creates a rich markdown document in an editor view.
 
@@ -209,7 +384,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 8: Command — Generate Workflow
+## Phase 9: Command — Generate Workflow
 
 **Goal:** Add the "Generate Workflow" command that creates interactive flowchart diagrams.
 
@@ -237,7 +412,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 9: Command — Generate Roadmap
+## Phase 10: Command — Generate Roadmap
 
 **Goal:** Add the "Generate Roadmap" command for timeline-based project visualization.
 
@@ -258,7 +433,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 10: Command — Generate Sprint
+## Phase 11: Command — Generate Sprint
 
 **Goal:** Add the "Generate Sprint" command for agile sprint planning.
 
@@ -278,12 +453,12 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 11: Command — Generate Document
+## Phase 12: Command — Generate Document
 
 **Goal:** Add a general-purpose "Generate Document" command for various document types.
 
 - [ ] Backend: API endpoint to generate different document formats (reports, proposals, specs, etc.)
-- [ ] Frontend: Reuse the Markdown Document Editor from Phase 7
+- [ ] Frontend: Reuse the Markdown Document Editor from Phase 8
 - [ ] Template selection: users can choose a document type/template before generating
 - [ ] Export to PDF, Markdown, or DOCX
 - [ ] Backend: Unit tests for document generation service
@@ -296,7 +471,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 12: Template Management & Projects
+## Phase 13: Template Management & Projects
 
 **Goal:** Allow users to manage all generated artifacts in a centralized library.
 
@@ -316,7 +491,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 13: Polish & Production Readiness
+## Phase 14: Polish & Production Readiness
 
 **Goal:** Final polish, performance, and deployment preparation.
 

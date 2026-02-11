@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const sessionRoutes = require('./routes/sessions');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 
@@ -25,7 +26,7 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true,
 }));
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 
 // Rate limiting — stricter in production, relaxed in development
@@ -65,6 +66,7 @@ app.use('/api/auth/register', registerLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

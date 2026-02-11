@@ -229,12 +229,12 @@ describe('Chat Routes', () => {
             expect(res.body.error).toContain('role');
         });
 
-        it('should return 400 when message has no content', async () => {
+        it('should return 400 when message has no content or attachments', async () => {
             const res = await request(app)
                 .post('/api/chat')
                 .send({ messages: [{ role: 'user' }] });
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('role');
+            expect(res.body.error).toContain('content');
         });
 
         it('should return 400 when message has invalid role', async () => {

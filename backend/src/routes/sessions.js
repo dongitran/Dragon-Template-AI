@@ -87,6 +87,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
                 id: m._id,
                 role: m.role,
                 content: m.content,
+                attachments: m.attachments || [],
                 createdAt: m.createdAt,
             })),
             createdAt: session.createdAt,
