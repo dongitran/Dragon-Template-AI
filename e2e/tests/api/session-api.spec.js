@@ -30,6 +30,13 @@
  *
  *  Full Lifecycle:
  *  19. Create → Chat → Verify messages → Rename → List → Delete → Verify gone
+ *
+ *  Security & Edge Cases:
+ *  20. Cross-user session isolation — user B cannot access user A's session
+ *  21. PATCH non-existent session — should return 404
+ *  22. PATCH invalid ObjectId — should return 404
+ *  23. DELETE invalid ObjectId — should return 404
+ *  24. Pagination beyond range — should return empty sessions
  */
 import { test, expect } from '@playwright/test';
 
@@ -437,3 +444,103 @@ test.describe('Session API — Full Lifecycle', () => {
         expect(verifyRes.status()).toBe(404);
     });
 });
+
+// ─── Security & Edge Cases ───
+
+test.describe('Session API — Security & Edge Cases', () => {
+    let cookies;
+
+    test.beforeAll(async ({ request }) => {
+        cookies = await loginAndGetCookies(request);
+    });
+
+    test('should not allow accessing another user\'s session', async ({ playwright, request }) => {
+        // User 1 (testuser) creates a session
+        const createRes = await request.post(`${API_BASE}/api/sessions`, {
+            headers: { Cookie: cookies },
+            data: { title: 'Private Session' },
+        });
+        expect(createRes.status()).toBe(201);
+        const { id: sessionId } = await createRes.json();
+
+        // Register/login as a different user
+        const user2Context = await playwright.request.newContext();
+        const uniqueSuffix = Date.now();
+        const registerRes = await user2Context.post(`${API_BASE}/api/auth/register`, {
+            data: {
+                username: `isolationtest${uniqueSuffix}`,
+                email: `isolationtest${uniqueSuffix}@test.com`,
+                password: 'testpass123',
+            },
+        });
+        // May be 201 (new) or 409 (already exists), handle both
+        if (registerRes.status() !== 201) {
+            await user2Context.post(`${API_BASE}/api/auth/login`, {
+                data: { username: `isolationtest${uniqueSuffix}`, password: 'testpass123' },
+            });
+        }
+
+        // User 2 tries to GET user 1's session → 404
+        const getRes = await user2Context.get(`${API_BASE}/api/sessions/${sessionId}`);
+        expect(getRes.status()).toBe(404);
+
+        // User 2 tries to PATCH user 1's session → 404
+        const patchRes = await user2Context.patch(`${API_BASE}/api/sessions/${sessionId}`, {
+            data: { title: 'Hacked!' },
+        });
+        expect(patchRes.status()).toBe(404);
+
+        // User 2 tries to DELETE user 1's session → 404
+        const deleteRes = await user2Context.delete(`${API_BASE}/api/sessions/${sessionId}`);
+        expect(deleteRes.status()).toBe(404);
+
+        // Verify session still exists for user 1
+        const verifyRes = await request.get(`${API_BASE}/api/sessions/${sessionId}`, {
+            headers: { Cookie: cookies },
+        });
+        expect(verifyRes.status()).toBe(200);
+        const verifyBody = await verifyRes.json();
+        expect(verifyBody.title).toBe('Private Session');
+
+        // Cleanup
+        await request.delete(`${API_BASE}/api/sessions/${sessionId}`, {
+            headers: { Cookie: cookies },
+        });
+        await user2Context.dispose();
+    });
+
+    test('should return 404 when patching non-existent session', async ({ request }) => {
+        const res = await request.patch(`${API_BASE}/api/sessions/000000000000000000000000`, {
+            headers: { Cookie: cookies },
+            data: { title: 'Ghost' },
+        });
+        expect(res.status()).toBe(404);
+    });
+
+    test('should return 404 when patching invalid ObjectId', async ({ request }) => {
+        const res = await request.patch(`${API_BASE}/api/sessions/invalid-id`, {
+            headers: { Cookie: cookies },
+            data: { title: 'Ghost' },
+        });
+        expect(res.status()).toBe(404);
+    });
+
+    test('should return 404 when deleting invalid ObjectId', async ({ request }) => {
+        const res = await request.delete(`${API_BASE}/api/sessions/invalid-id`, {
+            headers: { Cookie: cookies },
+        });
+        expect(res.status()).toBe(404);
+    });
+
+    test('should return empty sessions for page beyond range', async ({ request }) => {
+        const res = await request.get(`${API_BASE}/api/sessions?page=999&limit=10`, {
+            headers: { Cookie: cookies },
+        });
+        expect(res.status()).toBe(200);
+        const body = await res.json();
+        expect(body.sessions).toEqual([]);
+        expect(body.pagination.page).toBe(999);
+        expect(body.pagination.total).toBeGreaterThanOrEqual(0);
+    });
+});
+

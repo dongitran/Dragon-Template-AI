@@ -12,6 +12,10 @@
  *  6. should change model via selector
  *  7. should handle Enter key to send and Shift+Enter for newline
  *  8. should disable input during streaming
+ *  9. should display multi-turn conversation correctly
+ * 10. should keep user message visible during AI streaming
+ * 11. should redirect to home for non-existent session
+ * 12. should stop streaming when clicking stop button
  */
 import { test, expect } from '@playwright/test';
 
@@ -164,4 +168,90 @@ test.describe('Chat UI', () => {
         const assistantMsg = page.locator('.chat-message.assistant');
         await expect(stopBtn.or(assistantMsg)).toBeVisible({ timeout: 15000 });
     });
+
+    test('should display multi-turn conversation correctly', async ({ page }) => {
+        const input = page.locator('.chat-input-container textarea');
+
+        // Send first message
+        await input.fill('Say exactly: "First response"');
+        await page.locator('.chat-send-btn').click();
+
+        // Wait for first AI response
+        const firstAssistant = page.locator('.chat-message.assistant').first();
+        await expect(firstAssistant).toBeVisible({ timeout: 30000 });
+
+        // Wait for streaming to complete (send button reappears)
+        await expect(page.locator('.chat-send-btn')).toBeVisible({ timeout: 30000 });
+
+        // Send second message
+        await input.fill('Say exactly: "Second response"');
+        await page.locator('.chat-send-btn').click();
+
+        // Wait for second AI response
+        await page.waitForTimeout(2000);
+        const allUserMessages = page.locator('.chat-message.user');
+        const allAssistantMessages = page.locator('.chat-message.assistant');
+
+        // Should have 2 user messages and at least 2 assistant messages
+        await expect(allUserMessages).toHaveCount(2, { timeout: 30000 });
+        await expect(allAssistantMessages.nth(1)).toBeVisible({ timeout: 30000 });
+
+        // Verify message content
+        await expect(allUserMessages.first()).toContainText('First response');
+        await expect(allUserMessages.nth(1)).toContainText('Second response');
+    });
+
+    test('should keep user message visible during AI streaming', async ({ page }) => {
+        const input = page.locator('.chat-input-container textarea');
+        await input.fill('Write a 200 word story');
+        await page.locator('.chat-send-btn').click();
+
+        // User message should be visible immediately
+        const userMessage = page.locator('.chat-message.user');
+        await expect(userMessage).toBeVisible({ timeout: 5000 });
+        await expect(userMessage).toContainText('Write a 200 word story');
+
+        // Wait for assistant response to start streaming
+        const assistantMsg = page.locator('.chat-message.assistant');
+        await expect(assistantMsg).toBeVisible({ timeout: 30000 });
+
+        // User message should STILL be visible during streaming
+        await expect(userMessage).toBeVisible();
+        await expect(userMessage).toContainText('Write a 200 word story');
+    });
+
+    test('should redirect to home for non-existent session', async ({ page }) => {
+        // Navigate to a session that doesn't exist
+        await page.goto('/chat/000000000000000000000000');
+
+        // Should redirect back to home (new chat)
+        await expect(page).toHaveURL('/', { timeout: 10000 });
+
+        // Welcome screen should be visible
+        await expect(page.locator('.chat-empty')).toBeVisible();
+    });
+
+    test('should stop streaming when clicking stop button', async ({ page }) => {
+        const input = page.locator('.chat-input-container textarea');
+        await input.fill('Write a very long story about dragons, at least 500 words');
+        await page.locator('.chat-send-btn').click();
+
+        // Wait for stop button to appear
+        const stopBtn = page.locator('.chat-stop-btn');
+        await expect(stopBtn).toBeVisible({ timeout: 15000 });
+
+        // Click stop
+        await stopBtn.click();
+
+        // Send button should reappear (streaming stopped)
+        await expect(page.locator('.chat-send-btn')).toBeVisible({ timeout: 5000 });
+
+        // Input should be re-enabled
+        await expect(input).toBeEnabled({ timeout: 5000 });
+
+        // There should be a partial response visible
+        const assistantMsg = page.locator('.chat-message.assistant');
+        // May or may not have content depending on timing, but input should be enabled
+    });
 });
+

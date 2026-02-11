@@ -11,6 +11,11 @@
  *  5. POST /api/chat — should reject invalid message role (400)
  *  6. POST /api/chat — should reject invalid model (400)
  *  7. POST /api/chat — should stream SSE response for valid message
+ *  8. POST /api/chat — should return 404 for non-existent sessionId
+ *  9. POST /api/chat — should return 404 for malformed sessionId format
+ * 10. POST /api/chat — should reject message with empty content (400)
+ * 11. POST /api/chat — should support multi-turn conversation in same session
+ * 12. POST /api/chat — should include all required SSE event types in response
  */
 import { test, expect } from '@playwright/test';
 
@@ -144,5 +149,131 @@ test.describe('Chat API — Send Message', () => {
         expect(chunkLine).toBeDefined();
         const parsed = JSON.parse(chunkLine.replace('data: ', ''));
         expect(typeof parsed.chunk).toBe('string');
+    });
+
+    test('should return 404 for non-existent sessionId', async ({ request }) => {
+        const cookies = await loginAndGetCookies(request);
+
+        const res = await request.post(`${API_BASE}/api/chat`, {
+            headers: { Cookie: cookies },
+            data: {
+                messages: [{ role: 'user', content: 'hello' }],
+                sessionId: '000000000000000000000000',
+            },
+        });
+        expect(res.status()).toBe(404);
+        const body = await res.json();
+        expect(body.error).toContain('Session not found');
+    });
+
+    test('should return 404 for malformed sessionId format', async ({ request }) => {
+        const cookies = await loginAndGetCookies(request);
+
+        const res = await request.post(`${API_BASE}/api/chat`, {
+            headers: { Cookie: cookies },
+            data: {
+                messages: [{ role: 'user', content: 'hello' }],
+                sessionId: 'not-a-valid-objectid',
+            },
+        });
+        expect(res.status()).toBe(404);
+    });
+
+    test('should reject message with empty content (400)', async ({ request }) => {
+        const cookies = await loginAndGetCookies(request);
+
+        const res = await request.post(`${API_BASE}/api/chat`, {
+            headers: { Cookie: cookies },
+            data: {
+                messages: [{ role: 'user', content: '' }],
+            },
+        });
+        expect(res.status()).toBe(400);
+        const body = await res.json();
+        expect(body.error).toContain('content');
+    });
+
+    test('should support multi-turn conversation in same session', async ({ request }) => {
+        const cookies = await loginAndGetCookies(request);
+
+        // First message — creates session
+        const res1 = await request.post(`${API_BASE}/api/chat`, {
+            headers: { Cookie: cookies },
+            data: {
+                messages: [{ role: 'user', content: 'Say exactly: hello' }],
+            },
+        });
+        expect(res1.status()).toBe(200);
+        const events1 = (await res1.text()).split('\n').filter(l => l.startsWith('data: '));
+        const { sessionId } = JSON.parse(events1[0].replace('data: ', ''));
+        expect(sessionId).toBeDefined();
+
+        // Wait for async save
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Second message — continue session
+        const res2 = await request.post(`${API_BASE}/api/chat`, {
+            headers: { Cookie: cookies },
+            data: {
+                messages: [
+                    { role: 'user', content: 'Say exactly: hello' },
+                    { role: 'assistant', content: 'hello' },
+                    { role: 'user', content: 'Say exactly: world' },
+                ],
+                sessionId,
+            },
+        });
+        expect(res2.status()).toBe(200);
+        const events2 = (await res2.text()).split('\n').filter(l => l.startsWith('data: '));
+        // Should return same sessionId
+        const session2 = JSON.parse(events2[0].replace('data: ', ''));
+        expect(session2.sessionId).toBe(sessionId);
+
+        // Wait for async save
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Verify session has all messages accumulated
+        const getRes = await request.get(`${API_BASE}/api/sessions/${sessionId}`, {
+            headers: { Cookie: cookies },
+        });
+        const sessionData = await getRes.json();
+        // At least 4 messages: user1, assistant1, user2, assistant2
+        expect(sessionData.messages.length).toBeGreaterThanOrEqual(4);
+    });
+
+    test('should include all required SSE event types in response', async ({ request }) => {
+        const cookies = await loginAndGetCookies(request);
+
+        const res = await request.post(`${API_BASE}/api/chat`, {
+            headers: { Cookie: cookies },
+            data: {
+                messages: [{ role: 'user', content: 'Say exactly: test' }],
+            },
+        });
+
+        const body = await res.text();
+        const dataLines = body.split('\n').filter(l => l.startsWith('data: '));
+
+        // Must have: sessionId event, at least 1 chunk, [DONE]
+        expect(dataLines.length).toBeGreaterThanOrEqual(3);
+
+        // Event 1: sessionId
+        const sessionEvent = JSON.parse(dataLines[0].replace('data: ', ''));
+        expect(sessionEvent).toHaveProperty('sessionId');
+        expect(typeof sessionEvent.sessionId).toBe('string');
+
+        // Middle events: chunks (at least one)
+        const chunkEvents = dataLines.slice(1, -1).map(l => {
+            try { return JSON.parse(l.replace('data: ', '')); }
+            catch { return null; }
+        }).filter(e => e && e.chunk);
+        expect(chunkEvents.length).toBeGreaterThan(0);
+        chunkEvents.forEach(e => {
+            expect(typeof e.chunk).toBe('string');
+            expect(e.chunk.length).toBeGreaterThan(0);
+        });
+
+        // Last event: [DONE]
+        expect(dataLines[dataLines.length - 1]).toBe('data: [DONE]');
     });
 });

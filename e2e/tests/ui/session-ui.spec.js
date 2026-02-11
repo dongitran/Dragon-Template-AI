@@ -28,6 +28,11 @@
  *
  *  Multi-session:
  *  13. should create and switch between multiple sessions
+ *
+ *  Rename edge cases:
+ *  14. should cancel rename with Escape key
+ *  15. should redirect to home when deleting active session
+ *  16. should revert empty rename to original title
  */
 import { test, expect } from '@playwright/test';
 
@@ -290,4 +295,100 @@ test.describe('Session UI', () => {
         const messages = page.locator('.chat-message');
         await expect(messages.first()).toBeVisible({ timeout: 5000 });
     });
+
+    // ─── Rename Edge Cases ───
+
+    test('should cancel rename with Escape key', async ({ page }) => {
+        // Send a message to create a session
+        const textarea = page.locator('.chat-input-textarea');
+        await textarea.fill('Cancel rename test');
+        await page.locator('.chat-send-btn').click();
+        await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
+
+        // Wait for sidebar item
+        const firstItem = page.locator('.chat-sidebar-item').first();
+        await expect(firstItem).toBeVisible({ timeout: 10000 });
+
+        // Get original title
+        const originalTitle = await firstItem.locator('.chat-sidebar-item-title').textContent();
+
+        // Start editing
+        await firstItem.hover();
+        const editBtn = firstItem.locator('.chat-sidebar-action-btn').first();
+        await editBtn.click();
+
+        // Verify edit input appears
+        const editInput = firstItem.locator('input');
+        await expect(editInput).toBeVisible({ timeout: 3000 });
+
+        // Type something different
+        await editInput.fill('Should Not Save');
+
+        // Press Escape to cancel
+        await editInput.press('Escape');
+
+        // Should revert to original title (input disappears, title stays)
+        await expect(firstItem.locator('input')).not.toBeVisible({ timeout: 3000 });
+        await expect(firstItem).toContainText(originalTitle);
+    });
+
+    test('should redirect to home when deleting active session', async ({ page }) => {
+        // Send a message to create a session
+        const textarea = page.locator('.chat-input-textarea');
+        await textarea.fill('Delete active session test');
+        await page.locator('.chat-send-btn').click();
+        await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
+
+        // Wait for sidebar item and response
+        const firstItem = page.locator('.chat-sidebar-item').first();
+        await expect(firstItem).toBeVisible({ timeout: 10000 });
+
+        // Verify we're on a session URL
+        expect(page.url()).toMatch(/\/chat\/[a-f0-9]{24}/);
+
+        // Hover and click delete
+        await firstItem.hover();
+        const deleteBtn = firstItem.locator('.chat-sidebar-action-btn').last();
+        await expect(deleteBtn).toBeVisible();
+        await deleteBtn.click();
+
+        // Should redirect to home
+        await expect(page).toHaveURL('/', { timeout: 5000 });
+
+        // Welcome screen should appear
+        await expect(page.locator('.chat-empty')).toBeVisible({ timeout: 5000 });
+    });
+
+    test('should revert empty rename to original title', async ({ page }) => {
+        // Send a message to create a session
+        const textarea = page.locator('.chat-input-textarea');
+        await textarea.fill('Empty rename test');
+        await page.locator('.chat-send-btn').click();
+        await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
+
+        // Wait for sidebar item
+        const firstItem = page.locator('.chat-sidebar-item').first();
+        await expect(firstItem).toBeVisible({ timeout: 10000 });
+
+        // Get original title
+        const originalTitle = await firstItem.locator('.chat-sidebar-item-title').textContent();
+
+        // Start editing
+        await firstItem.hover();
+        const editBtn = firstItem.locator('.chat-sidebar-action-btn').first();
+        await editBtn.click();
+
+        // Clear the input (empty title)
+        const editInput = firstItem.locator('input');
+        await expect(editInput).toBeVisible({ timeout: 3000 });
+        await editInput.fill('');
+
+        // Press Enter with empty value
+        await editInput.press('Enter');
+
+        // Should revert to original title (empty title is rejected)
+        await expect(firstItem.locator('input')).not.toBeVisible({ timeout: 3000 });
+        await expect(firstItem).toContainText(originalTitle);
+    });
 });
+
