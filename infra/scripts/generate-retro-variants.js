@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB3pNlo-lb48YfvXzIWOPzgxv5aG42dXiA';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const PROMPT = `Create a 21:9 ultra-wide infrastructure diagram as a retro tech poster.
 Dragon Template AI infrastructure:

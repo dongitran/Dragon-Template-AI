@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB3pNlo-lb48YfvXzIWOPzgxv5aG42dXiA';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const prompt = `Generate a 21:9 ultra-wide infrastructure architecture diagram. Dark navy background with neon glow effects.
 

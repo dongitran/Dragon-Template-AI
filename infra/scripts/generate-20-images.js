@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB3pNlo-lb48YfvXzIWOPzgxv5aG42dXiA';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const INFRA_CONTEXT = `Dragon Template AI infrastructure:
 - GKE Cluster (Google Kubernetes Engine) with 2 worker nodes
