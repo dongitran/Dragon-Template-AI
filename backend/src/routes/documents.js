@@ -60,6 +60,7 @@ router.post('/generate-plan', authMiddleware, async (req, res) => {
         // Helper to send SSE data
         const sendSSE = (data) => {
             res.write(`data: ${JSON.stringify(data)}\n\n`);
+            if (res.flush) res.flush(); // Force push to client immediately
         };
 
         // Send sessionId first so frontend can navigate
