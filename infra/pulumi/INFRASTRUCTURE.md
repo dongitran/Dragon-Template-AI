@@ -499,6 +499,9 @@ kubectl get pods --all-namespaces
 ```
 GCP Project: fair-backbone-479312-h7
 ├── IAM: dragon-deployer SA + WIF (GitHub Actions OIDC)
+├── Global Static IP: dragon-ingress-ip (34.120.179.221)
+├── HTTP(S) Load Balancer (auto-created by GKE Ingress)
+│   └── GCP Managed Certificate: dragon-cert (keycloak.dragon-template.xyz)
 └── VPC: dragon-network (custom, no auto-subnets)
     ├── Firewall: allow-mongodb-nodeport (tcp:30017)
     ├── Firewall: allow-keycloak-nodeport (tcp:30080)
@@ -510,6 +513,8 @@ GCP Project: fair-backbone-479312-h7
                     ├── Node 1: e2-medium, 50GB (34.158.41.47)
                     └── Node 2: e2-medium, 50GB (34.87.99.143)
                         └── Namespace: dragon
+                            ├── Ingress: dragon-ingress (GCE class)
+                            ├── ManagedCertificate: dragon-cert
                             ├── StatefulSet: mongodb (mongo:7, 1/1 Running)
                             ├── Service: mongodb (NodePort 30017)
                             ├── PVC: mongodb-data (3GB pd-standard)
@@ -518,6 +523,9 @@ GCP Project: fair-backbone-479312-h7
                             ├── Service: keycloak (NodePort 30080)
                             ├── PVC: keycloak-data (1GB pd-standard)
                             └── Secret: keycloak-secret
+
+DNS: keycloak.dragon-template.xyz -> 34.120.179.221 (A record @ matbao.net)
+Traffic flow: User -> keycloak.dragon-template.xyz:443 -> GCP LB (SSL termination) -> Keycloak:8080
 ```
 
 ### Bao mat
@@ -937,6 +945,176 @@ kubectl get pods -n dragon
 
 ---
 
+### Step 23: Setup domain keycloak.dragon-template.xyz (Ingress + SSL)
+**Muc dich**: Gan domain `keycloak.dragon-template.xyz` vao Keycloak voi HTTPS (SSL tu dong).
+
+**Chon phuong an:**
+| Phuong an | Chi phi | Ket qua |
+|-----------|---------|---------|
+| Ingress + GCP Load Balancer + Managed SSL | ~$18/thang | **CHON** - co SSL tu dong, standard ports (443/80) |
+| NodePort + DNS | $0 | Phai dung port 30080, khong co SSL |
+
+**23a. Mua domain:**
+- Domain: `dragon-template.xyz` mua tai [matbao.net](https://matbao.net)
+
+**23b. Reserve global static IP:**
+```bash
+gcloud compute addresses create dragon-ingress-ip --global \
+  --project=fair-backbone-479312-h7
+# => 34.120.179.221
+
+gcloud compute addresses describe dragon-ingress-ip --global
+# address: 34.120.179.221, status: RESERVED
+```
+
+**23c. Tao Ingress + Managed Certificate manifests:**
+```
+infra/gke/ingress/
+├── managed-cert.yaml    # GCP Managed Certificate (auto SSL)
+└── ingress.yaml         # GKE Ingress (HTTP(S) Load Balancer)
+```
+
+**managed-cert.yaml:**
+```yaml
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: dragon-cert
+  namespace: dragon
+spec:
+  domains:
+    - keycloak.dragon-template.xyz
+```
+
+**ingress.yaml:**
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dragon-ingress
+  namespace: dragon
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "dragon-ingress-ip"
+    networking.gke.io/managed-certificates: "dragon-cert"
+    kubernetes.io/ingress.class: "gce"    # Phai dung annotation, KHONG dung ingressClassName
+spec:
+  defaultBackend:                          # Bat buoc de tranh NEG sync error
+    service:
+      name: keycloak
+      port:
+        number: 8080
+  rules:
+    - host: keycloak.dragon-template.xyz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
+```
+
+**23d. Cap nhat Keycloak deployment cho reverse proxy:**
+Them 2 env vars vao `infra/gke/keycloak/deployment.yaml`:
+```yaml
+- name: KC_PROXY_HEADERS
+  value: "xforwarded"           # Nhan dien X-Forwarded-* headers tu LB
+- name: KC_HOSTNAME
+  value: "keycloak.dragon-template.xyz"   # CHI hostname, KHONG co protocol
+```
+
+**23e. Them job `deploy-ingress` vao `deploy-gke.yml`:**
+- Trigger: thay doi trong `infra/gke/ingress/`
+- Steps: auth GCP, get GKE creds, create namespace, deploy ingress manifests
+
+**23f. Setup DNS tai matbao.net:**
+```
+Type: A
+Host: keycloak
+Value: 34.120.179.221
+TTL: 300
+```
+
+**Verify DNS:**
+```bash
+nslookup keycloak.dragon-template.xyz
+# Address: 34.120.179.221 ✓
+```
+
+**23g. Deploy Ingress:**
+```bash
+kubectl apply -f infra/gke/ingress/
+# managedcertificate.networking.gke.io/dragon-cert created
+# ingress.networking.k8s.io/dragon-ingress created
+```
+
+**23h. Doi GCP Managed Certificate provisioning:**
+- GCP Managed Certificate can DNS resolve thanh cong moi bat dau provision SSL
+- Thoi gian: **~15-60 phut** (truong hop nay mat **~51 phut**)
+- Trong thoi gian doi: HTTP tra loi "HTTPS required" (Keycloak reject HTTP khi co KC_HOSTNAME)
+- Sau khi cert Active: HTTPS hoat dong binh thuong
+
+**Kiem tra cert status:**
+```bash
+kubectl describe managedcertificate dragon-cert -n dragon
+# Status: Active              # Sau ~51 phut
+# Certificate Status: Active
+# Domain Status:
+#   Domain: keycloak.dragon-template.xyz
+#   Status: Active
+```
+
+**23i. Ket qua thanh cong:**
+```bash
+curl -I https://keycloak.dragon-template.xyz/
+# HTTP/2 200
+# content-type: text/html;charset=utf-8
+# via: 1.1 google
+# alt-svc: h3=":443"
+```
+
+**Ket qua**: Keycloak accessible tai **https://keycloak.dragon-template.xyz** voi SSL tu dong.
+
+**23j. Troubleshooting (5 loi):**
+
+**Loi 1: NEG sync error - `RESOURCE_NOT_FOUND`**
+```
+Warning  Sync  error running backend syncing routine:
+  googleapi: Error 404: The resource 'default-http-backend' was not found
+```
+- **Nguyen nhan**: GKE Ingress can defaultBackend, khong co thi tim `default-http-backend` service (khong ton tai)
+- **Fix**: Them `spec.defaultBackend` trong ingress.yaml tro ve keycloak service
+
+**Loi 2: `ingressClassName: gce` khong hoat dong**
+```bash
+kubectl get ingressclass
+# No resources found
+```
+- **Nguyen nhan**: GKE cluster khong co IngressClass resource, `ingressClassName` field bi bo qua
+- **Fix**: Dung annotation `kubernetes.io/ingress.class: "gce"` (deprecated nhung van hoat dong)
+
+**Loi 3: CSP error `http://https:` trong browser console**
+```
+Refused to connect to 'http://https:/keycloak.dragon-template.xyz/...'
+```
+- **Nguyen nhan**: `KC_HOSTNAME` set thanh `https://keycloak.dragon-template.xyz` (co protocol)
+- **Fix**: Doi thanh chi hostname `keycloak.dragon-template.xyz` (KHONG co `https://`)
+
+**Loi 4: "HTTPS required" khi truy cap HTTP**
+```
+HTTPS required
+```
+- **Nguyen nhan**: Keycloak nhan X-Forwarded-Proto=http tu LB va tu choi vi KC_HOSTNAME da set
+- **Fix**: Doi GCP Managed Certificate chuyen sang Active, sau do dung HTTPS
+
+**Loi 5: Connection reset khi vua tao Ingress**
+- **Nguyen nhan**: GCP Load Balancer can ~2-3 phut de tao forwarding rules
+- **Fix**: Doi 2-3 phut sau khi `kubectl apply`
+
+---
+
 ## Ket qua cuoi cung (Updated)
 
 ### MongoDB on GKE
@@ -960,9 +1138,21 @@ kubectl get pods -n dragon
 | Namespace | dragon |
 | PVC | 1GB pd-standard |
 | Service | NodePort 30080 |
-| Admin Console | http://34.158.41.47:30080 |
+| Domain | https://keycloak.dragon-template.xyz |
+| Admin Console (NodePort) | http://34.158.41.47:30080 |
 | CPU | request 100m, limit 500m |
 | Memory | request 512Mi, limit 1Gi |
+
+### Ingress & SSL
+| Property | Value |
+|----------|-------|
+| Domain | keycloak.dragon-template.xyz |
+| DNS Provider | matbao.net (A record) |
+| Static IP | 34.120.179.221 (dragon-ingress-ip, global) |
+| Load Balancer | GCP HTTP(S) LB (auto by GKE Ingress) |
+| SSL Certificate | GCP Managed Certificate (auto-renew) |
+| Ingress Class | gce (annotation-based) |
+| Chi phi | ~$18/thang |
 
 ### CI/CD Pipeline
 | Component | Value |
@@ -989,6 +1179,11 @@ kubectl get pods -n dragon
 | 15 | Keycloak PVC permission denied | PVC owned by root, Keycloak chay uid 1000 | Them `securityContext.fsGroup: 1000` |
 | 16 | Keycloak health endpoint 404 | Chua enable health check | Them `KC_HEALTH_ENABLED=true` |
 | 17 | Keycloak liveness probe killed | start-dev build cham (~155s) vuot qua delay 180s | Tang `initialDelaySeconds` len 300s, memory len 1Gi |
+| 18 | NEG sync error `RESOURCE_NOT_FOUND` | Ingress tim `default-http-backend` (khong ton tai) | Them `spec.defaultBackend` tro ve keycloak |
+| 19 | `ingressClassName: gce` bi bo qua | GKE khong co IngressClass resource | Dung annotation `kubernetes.io/ingress.class: "gce"` |
+| 20 | CSP error `http://https:` | `KC_HOSTNAME` co protocol `https://` | Chi dung hostname `keycloak.dragon-template.xyz` (khong co protocol) |
+| 21 | "HTTPS required" khi truy cap HTTP | Keycloak reject HTTP khi KC_HOSTNAME da set | Doi GCP Managed Certificate Active (~51 phut), dung HTTPS |
+| 22 | Connection reset sau khi tao Ingress | GCP LB can 2-3 phut tao forwarding rules | Doi 2-3 phut |
 
 ---
 
@@ -1018,6 +1213,12 @@ gcloud container clusters get-credentials dragon-gke \
 kubectl get nodes
 kubectl get pods --all-namespaces
 
+# Check Ingress & SSL cert status
+kubectl get ingress -n dragon
+kubectl get managedcertificates -n dragon
+kubectl describe managedcertificate dragon-cert -n dragon
+kubectl get managedcertificates -n dragon -o yaml
+
 # Destroy infrastructure
 PULUMI_CONFIG_PASSPHRASE="" pulumi destroy
 ```
@@ -1025,13 +1226,29 @@ PULUMI_CONFIG_PASSPHRASE="" pulumi destroy
 ## Files Structure
 ```
 infra/
-├── .gitignore           # Bao ve secrets khoi git
-├── .pulumi/             # Pulumi local state (git-ignored)
-├── index.ts             # Code IaC chinh (VPC + GKE)
-├── package.json         # Dependencies: @pulumi/pulumi, @pulumi/gcp, @pulumi/kubernetes
-├── package-lock.json
-├── Pulumi.yaml          # Project definition
-├── Pulumi.dev.yaml      # Stack config (gcp-project, region, zone)
-├── tsconfig.json        # TypeScript config
-└── INFRASTRUCTURE.md    # File nay
+├── pulumi/
+│   ├── .gitignore           # Bao ve secrets khoi git
+│   ├── .pulumi/             # Pulumi local state (git-ignored)
+│   ├── index.ts             # Code IaC chinh (VPC + GKE)
+│   ├── package.json         # Dependencies: @pulumi/pulumi, @pulumi/gcp, @pulumi/kubernetes
+│   ├── package-lock.json
+│   ├── Pulumi.yaml          # Project definition
+│   ├── Pulumi.dev.yaml      # Stack config (gcp-project, region, zone)
+│   ├── tsconfig.json        # TypeScript config
+│   └── INFRASTRUCTURE.md    # File nay
+├── gke/
+│   ├── mongodb/
+│   │   ├── namespace.yaml       # Namespace "dragon"
+│   │   ├── pvc.yaml             # PVC 3GB pd-standard
+│   │   ├── statefulset.yaml     # MongoDB StatefulSet (mongo:7)
+│   │   └── service.yaml         # NodePort 30017
+│   ├── keycloak/
+│   │   ├── deployment.yaml      # Keycloak Deployment (keycloak:24.0)
+│   │   ├── pvc.yaml             # PVC 1GB pd-standard
+│   │   └── service.yaml         # NodePort 30080
+│   └── ingress/
+│       ├── managed-cert.yaml    # GCP Managed Certificate (auto SSL)
+│       └── ingress.yaml         # GKE Ingress (HTTP(S) LB)
+└── .github/workflows/
+    └── deploy-gke.yml           # CI/CD: deploy-mongodb, deploy-ingress, deploy-keycloak
 ```
