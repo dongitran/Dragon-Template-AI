@@ -156,7 +156,17 @@ Generate realistic, detailed, professional content for each section. Be specific
 
     try {
         for await (const chunk of streamSource) {
-            const text = chunk.text();
+            // Handle multiple chunk structures for SDK compatibility
+            let text = null;
+
+            if (typeof chunk.text === 'function') {
+                text = chunk.text();
+            } else if (typeof chunk.text === 'string') {
+                text = chunk.text;
+            } else if (chunk.candidates?.[0]?.content?.parts?.[0]?.text) {
+                text = chunk.candidates[0].content.parts[0].text;
+            }
+
             if (text) yield text;
         }
     } catch (error) {
