@@ -1805,6 +1805,95 @@ const [url] = await bucket.file('uploads/file.png').getSignedUrl({
 
 ---
 
+### Step 27: Add GCS_CREDENTIALS to Backend Deployment
+**Muc dich**: Backend upload API (`POST /api/upload`) tra ve 500 vi thieu env var `GCS_CREDENTIALS`. Can them vao K8s secret, deployment manifest, va GitHub Secrets.
+
+**27a. Chan doan loi:**
+```bash
+# Check backend pod logs
+kubectl logs deployment/backend -n dragon --tail=100
+
+# Tim thay loi:
+# [Upload] GCS upload error: GCS_CREDENTIALS env var is required. Set it to the full JSON service account key.
+# POST /api/upload 500
+```
+
+**27b. Them GCS_CREDENTIALS vao backend deployment.yaml:**
+```yaml
+# infra/gke/backend/deployment.yaml - them env var moi:
+            - name: GCS_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GCS_CREDENTIALS
+```
+
+**27c. Them GCS_CREDENTIALS vao deploy-gke.yml (CI/CD):**
+```yaml
+# .github/workflows/deploy-gke.yml - them vao buoc "Create Backend secret":
+            --from-literal=GCS_CREDENTIALS='${{ secrets.GCS_CREDENTIALS }}' \
+```
+
+**27d. Patch K8s secret truc tiep (fix ngay, khong doi CI/CD):**
+```bash
+# QUAN TRONG: Phai dung heredoc voi 'ENDOFFILE' (co quotes) de giu literal \n trong private_key
+# Neu dung echo/bash truc tiep, \n se bi convert thanh newline that -> JSON.parse() loi:
+# "Bad control character in string literal in JSON at position 167"
+
+cat > /tmp/gcs-creds.json << 'ENDOFFILE'
+{"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----\n",...}
+ENDOFFILE
+
+# Verify JSON hop le truoc khi apply
+node -e "JSON.parse(require('fs').readFileSync('/tmp/gcs-creds.json','utf8')); console.log('JSON valid!')"
+
+# Base64 encode va patch secret
+GCS_B64=$(base64 < /tmp/gcs-creds.json | tr -d '\n')
+kubectl patch secret backend-secret -n dragon \
+  --type='json' \
+  -p="[{\"op\":\"add\",\"path\":\"/data/GCS_CREDENTIALS\",\"value\":\"$GCS_B64\"}]"
+```
+
+**27e. Apply deployment va restart backend:**
+```bash
+kubectl apply -f infra/gke/backend/deployment.yaml
+kubectl rollout restart deployment/backend -n dragon
+kubectl rollout status deployment/backend -n dragon --timeout=120s
+```
+
+**27f. Them GitHub Secret (cho CI/CD deploy sau nay):**
+```bash
+# Set GCS_CREDENTIALS secret (full JSON service account key)
+gh secret set GCS_CREDENTIALS --repo dongitran/Dragon-Template-AI --body '<xem trong secret.md>'
+
+# Verify
+gh secret list --repo dongitran/Dragon-Template-AI | grep GCS
+```
+
+**27g. Verify upload API hoat dong:**
+```bash
+# Check logs - khong con loi GCS
+kubectl logs deployment/backend -n dragon --tail=20
+
+# Test upload API
+curl -X POST https://api.dragon-template.xyz/api/upload \
+  -H "Cookie: token=<jwt_token>" \
+  -F "file=@test-file.pdf"
+```
+
+**27h. Luu y quan trong:**
+- **Private key `\n` trong JSON**: Khi truyen JSON qua bash/shell, `\n` trong `private_key` bi convert thanh newline that. Phai dung heredoc voi quotes (`<< 'EOF'`) hoac ghi ra file truoc de giu nguyen literal `\n`.
+- **Loi "Bad control character"**: La do `JSON.parse()` gap actual newline trong string (khong hop le trong JSON). Fix: dam bao `\n` la escape sequence, khong phai newline that.
+
+**27i. Ket qua:**
+- Backend pod co env var `GCS_CREDENTIALS` ✓
+- Upload API (`POST /api/upload`) tra ve 200 ✓
+- K8s secret `backend-secret` co key `GCS_CREDENTIALS` ✓
+- GitHub Secret `GCS_CREDENTIALS` da set ✓
+- CI/CD (`deploy-gke.yml`) se tu dong apply secret khi deploy ✓
+
+---
+
 ## Ket qua cuoi cung (Updated)
 
 ### MongoDB on GKE
@@ -1845,7 +1934,7 @@ const [url] = await bucket.file('uploads/file.png').getSignedUrl({
 | Memory | request 256Mi, limit 512Mi |
 | Health check | /api/health (liveness 30s, readiness 10s) |
 | Env (direct) | BACKEND_PORT, NODE_ENV, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID |
-| Env (secret) | MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
+| Env (secret) | MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN, GCS_CREDENTIALS |
 
 ### Frontend on GKE
 | Property | Value |

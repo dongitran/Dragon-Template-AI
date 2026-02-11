@@ -232,7 +232,8 @@ test.describe('Rate Limiting', () => {
     });
 
     test('should reject oversized request body', async ({ request }) => {
-        const largePayload = { data: 'x'.repeat(20000) };
+        // express.json limit is 5MB, send 6MB to trigger 413
+        const largePayload = { data: 'x'.repeat(6 * 1024 * 1024) };
 
         const res = await request.post(`${API_BASE}/api/auth/login`, {
             data: largePayload,
