@@ -26,7 +26,11 @@ An AI-powered web chat platform that goes beyond simple conversation — it gene
 - 🤖 Google Gemini AI
 
 **Infrastructure**
-- 🐳 Docker Compose
+- 🐳 Docker Compose (local dev)
+- ☸️ GKE (Google Kubernetes Engine) — production
+- 🔄 GitHub Actions CI/CD — auto deploy on push
+- 🔒 GCP Managed SSL + Load Balancer
+- 📦 Google Cloud Storage (file uploads)
 
 ## 🎯 Features
 
