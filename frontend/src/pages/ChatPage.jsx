@@ -151,7 +151,7 @@ function ChatPage() {
         // Start character-by-character display loop
         const startTyping = () => {
             if (typingInterval) return;
-            const charsPerSec = parseInt(import.meta.env.VITE_CHAT_TYPING_SPEED || '20', 10);
+            const charsPerSec = parseInt(import.meta.env.VITE_CHAT_TYPING_SPEED || '75', 10);
             const intervalMs = 1000 / charsPerSec;
 
             typingInterval = setInterval(() => {
