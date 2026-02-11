@@ -95,7 +95,7 @@ test.describe('Auth API — Me', () => {
     test('should return user profile with valid cookie', async ({ request }) => {
         // Login first to get cookies
         const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
-            data: { username: 'testuser', password: 'testpass123' },
+            data: { username: TEST_USERNAME, password: TEST_PASSWORD },
         });
         expect(loginRes.status()).toBe(200);
 
@@ -114,7 +114,7 @@ test.describe('Auth API — Me', () => {
         // Login to get cookies
         const context1 = await playwright.request.newContext();
         const loginRes = await context1.post(`${API_BASE}/api/auth/login`, {
-            data: { username: 'testuser', password: 'testpass123' },
+            data: { username: TEST_USERNAME, password: TEST_PASSWORD },
         });
         expect(loginRes.status()).toBe(200);
 
@@ -156,7 +156,7 @@ test.describe('Auth API — Refresh', () => {
     test('should refresh tokens with valid cookie', async ({ request }) => {
         // Login first
         const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
-            data: { username: 'testuser', password: 'testpass123' },
+            data: { username: TEST_USERNAME, password: TEST_PASSWORD },
         });
         expect(loginRes.status()).toBe(200);
 
@@ -178,7 +178,7 @@ test.describe('Auth API — Logout', () => {
     test('should clear auth cookies', async ({ request }) => {
         // Login first
         await request.post(`${API_BASE}/api/auth/login`, {
-            data: { username: 'testuser', password: 'testpass123' },
+            data: { username: TEST_USERNAME, password: TEST_PASSWORD },
         });
 
         // Logout
