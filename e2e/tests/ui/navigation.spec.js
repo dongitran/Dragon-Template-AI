@@ -30,7 +30,7 @@ test.describe('Navigation', () => {
         const sidebar = page.locator('.ant-layout-sider');
         await expect(sidebar).toBeVisible();
 
-        await expect(page.getByText('Chat')).toBeVisible();
+        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
         await expect(page.getByText('Documents')).toBeVisible();
         await expect(page.getByText('Workflows')).toBeVisible();
         await expect(page.getByText('Projects')).toBeVisible();
@@ -63,7 +63,7 @@ test.describe('Navigation', () => {
         await expect(page).toHaveURL('/documents');
 
         // Navigate back to Chat
-        await page.getByText('Chat').click();
+        await page.getByText('Chat', { exact: true }).click();
         await expect(page).toHaveURL('/');
     });
 

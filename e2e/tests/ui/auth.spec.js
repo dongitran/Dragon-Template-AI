@@ -84,7 +84,7 @@ test.describe('Authentication Flow', () => {
         await expect(page).toHaveURL('/', { timeout: 10000 });
 
         // Should show the app layout with sidebar
-        await expect(page.getByText('Chat')).toBeVisible();
+        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
         await expect(page.getByText('Documents')).toBeVisible();
         await expect(page.getByText('Welcome to Dragon AI')).toBeVisible();
     });
