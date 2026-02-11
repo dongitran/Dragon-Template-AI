@@ -195,6 +195,7 @@ jobs:
             --from-literal=GEMINI_API_KEYS="${{ secrets.GEMINI_API_KEYS }}" \
             --from-literal=AI_PROVIDERS_CONFIG='${{ secrets.AI_PROVIDERS_CONFIG }}' \
             --from-literal=CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} \
+            --from-literal=GCS_CREDENTIALS='${{ secrets.GCS_CREDENTIALS }}' \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Backend

@@ -56,6 +56,11 @@ spec:
                 secretKeyRef:
                   name: backend-secret
                   key: CORS_ORIGIN
+            - name: GCS_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GCS_CREDENTIALS
           resources:
             requests:
               memory: "256Mi"
