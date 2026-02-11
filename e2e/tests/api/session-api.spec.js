@@ -40,12 +40,15 @@
  */
 import { test, expect } from '@playwright/test';
 
+const TEST_USERNAME = process.env.E2E_TEST_USERNAME || 'testuser';
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'testpass123';
+
 const API_BASE = process.env.E2E_API_URL || 'http://localhost:3001';
 
 /** Login and return cookies string for subsequent requests */
 async function loginAndGetCookies(request) {
     const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
-        data: { username: 'testuser', password: 'testpass123' },
+        data: { username: TEST_USERNAME, password: TEST_PASSWORD },
     });
     expect(loginRes.status()).toBe(200);
 
@@ -470,13 +473,13 @@ test.describe('Session API — Security & Edge Cases', () => {
             data: {
                 username: `isolationtest${uniqueSuffix}`,
                 email: `isolationtest${uniqueSuffix}@test.com`,
-                password: 'testpass123',
+                password: TEST_PASSWORD,
             },
         });
         // May be 201 (new) or 409 (already exists), handle both
         if (registerRes.status() !== 201) {
             await user2Context.post(`${API_BASE}/api/auth/login`, {
-                data: { username: `isolationtest${uniqueSuffix}`, password: 'testpass123' },
+                data: { username: `isolationtest${uniqueSuffix}`, password: TEST_PASSWORD },
             });
         }
 

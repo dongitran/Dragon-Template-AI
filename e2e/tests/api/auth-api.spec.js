@@ -20,6 +20,9 @@
  */
 import { test, expect } from '@playwright/test';
 
+const TEST_USERNAME = process.env.E2E_TEST_USERNAME || 'testuser';
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'testpass123';
+
 const API_BASE = process.env.E2E_API_URL || 'http://localhost:3001';
 
 test.describe('Health Check API', () => {
@@ -58,7 +61,7 @@ test.describe('Auth API — Login', () => {
 
     test('should login and return user with cookies', async ({ request }) => {
         const res = await request.post(`${API_BASE}/api/auth/login`, {
-            data: { username: 'testuser', password: 'testpass123' },
+            data: { username: TEST_USERNAME, password: TEST_PASSWORD },
         });
 
         expect(res.status()).toBe(200);
@@ -205,9 +208,9 @@ test.describe('Auth API — Register', () => {
     test('should reject duplicate username', async ({ request }) => {
         const res = await request.post(`${API_BASE}/api/auth/register`, {
             data: {
-                username: 'testuser',
+                username: TEST_USERNAME,
                 email: 'duplicate@dragon.ai',
-                password: 'testpass123',
+                password: TEST_PASSWORD,
             },
         });
 

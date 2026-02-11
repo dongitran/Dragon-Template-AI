@@ -9,6 +9,8 @@ infra/pulumi/node_modules/
 # Secrets & credentials
 .env
 .env.*
+!e2e/.env.local
+!e2e/.env.ci
 *.pem
 *.key
 kubeconfig*

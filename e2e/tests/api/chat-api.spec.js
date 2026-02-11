@@ -19,12 +19,15 @@
  */
 import { test, expect } from '@playwright/test';
 
+const TEST_USERNAME = process.env.E2E_TEST_USERNAME || 'testuser';
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'testpass123';
+
 const API_BASE = process.env.E2E_API_URL || 'http://localhost:3001';
 
 /** Login and return cookies string for subsequent requests */
 async function loginAndGetCookies(request) {
     const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
-        data: { username: 'testuser', password: 'testpass123' },
+        data: { username: TEST_USERNAME, password: TEST_PASSWORD },
     });
     expect(loginRes.status()).toBe(200);
 

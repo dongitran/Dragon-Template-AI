@@ -22,6 +22,9 @@
  */
 import { test, expect } from '@playwright/test';
 
+const TEST_USERNAME = process.env.E2E_TEST_USERNAME || 'testuser';
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'testpass123';
+
 test.describe('Authentication Flow', () => {
     test.beforeEach(async ({ page }) => {
         // Clear cookies before each test
@@ -73,8 +76,8 @@ test.describe('Authentication Flow', () => {
     test('should login successfully with valid credentials', async ({ page }) => {
         await page.goto('/login');
 
-        await page.getByPlaceholder('Username').fill('testuser');
-        await page.getByPlaceholder('Password').fill('testpass123');
+        await page.getByPlaceholder('Username').fill(TEST_USERNAME);
+        await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
 
         // Should redirect to home/dashboard
@@ -163,8 +166,8 @@ test.describe('Authenticated Session', () => {
     test.beforeEach(async ({ page }) => {
         // Login before each test in this group
         await page.goto('/login');
-        await page.getByPlaceholder('Username').fill('testuser');
-        await page.getByPlaceholder('Password').fill('testpass123');
+        await page.getByPlaceholder('Username').fill(TEST_USERNAME);
+        await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
         await expect(page).toHaveURL('/', { timeout: 10000 });
     });
@@ -214,8 +217,8 @@ test.describe('Authenticated Session', () => {
         await expect(page).toHaveURL('/login', { timeout: 5000 });
 
         // Login again
-        await page.getByPlaceholder('Username').fill('testuser');
-        await page.getByPlaceholder('Password').fill('testpass123');
+        await page.getByPlaceholder('Username').fill(TEST_USERNAME);
+        await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
 
         await expect(page).toHaveURL('/', { timeout: 10000 });
@@ -227,8 +230,8 @@ test.describe('Auth Redirect — Authenticated Users', () => {
     test.beforeEach(async ({ page }) => {
         // Login first
         await page.goto('/login');
-        await page.getByPlaceholder('Username').fill('testuser');
-        await page.getByPlaceholder('Password').fill('testpass123');
+        await page.getByPlaceholder('Username').fill(TEST_USERNAME);
+        await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
         await expect(page).toHaveURL('/', { timeout: 10000 });
     });
