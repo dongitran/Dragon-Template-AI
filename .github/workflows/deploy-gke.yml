@@ -6,6 +6,7 @@ on:
     paths:
       - 'infra/gke/**'
       - 'backend/**'
+      - 'frontend/**'
 
   workflow_dispatch:
 
@@ -189,6 +190,60 @@ jobs:
 
       - name: Wait for Backend ready
         run: kubectl rollout status deployment/backend -n dragon --timeout=120s
+
+      - name: Show status
+        run: |
+          kubectl get pods -n dragon
+          kubectl get svc -n dragon
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(toJSON(github.event.commits.*.modified), 'frontend/') || contains(toJSON(github.event.commits.*.modified), 'infra/gke/frontend/')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/544685971138/locations/global/workloadIdentityPools/dragon-github-pool/providers/dragon-github-provider'
+          service_account: 'dragon-deployer@fair-backbone-479312-h7.iam.gserviceaccount.com'
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=https://api.dragon-template.xyz \
+            --build-arg VITE_KEYCLOAK_URL=https://keycloak.dragon-template.xyz \
+            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:${{ github.sha }} \
+            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest \
+            --target production \
+            ./frontend
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: dragon-gke
+          location: asia-southeast1-a
+
+      - name: Create namespace
+        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Frontend
+        run: |
+          kubectl set image deployment/frontend frontend=asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:${{ github.sha }} -n dragon 2>/dev/null || true
+          kubectl apply -f infra/gke/frontend/
+
+      - name: Wait for Frontend ready
+        run: kubectl rollout status deployment/frontend -n dragon --timeout=120s
 
       - name: Show status
         run: |

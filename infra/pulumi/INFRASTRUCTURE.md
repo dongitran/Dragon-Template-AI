@@ -501,10 +501,12 @@ GCP Project: fair-backbone-479312-h7
 ├── IAM: dragon-deployer SA + WIF (GitHub Actions OIDC)
 │   └── Roles: container.developer, artifactregistry.writer
 ├── Artifact Registry: dragon-images (asia-southeast1, Docker)
-│   └── backend:latest (Express.js, linux/amd64)
+│   ├── backend:latest (Express.js, linux/amd64)
+│   └── frontend:latest (React SPA + nginx:alpine, linux/amd64)
 ├── Global Static IP: dragon-ingress-ip (34.120.179.221)
 ├── HTTP(S) Load Balancer (auto-created by GKE Ingress)
 │   └── GCP Managed Certificate: dragon-cert
+│       ├── dragon-template.xyz
 │       ├── keycloak.dragon-template.xyz
 │       └── api.dragon-template.xyz
 └── VPC: dragon-network (custom, no auto-subnets)
@@ -530,9 +532,12 @@ GCP Project: fair-backbone-479312-h7
                             ├── Secret: keycloak-secret
                             ├── Deployment: backend (Express.js, 1/1 Running)
                             ├── Service: backend (NodePort 30010)
-                            └── Secret: backend-secret
+                            ├── Secret: backend-secret
+                            ├── Deployment: frontend (React SPA + nginx, 1/1 Running)
+                            └── Service: frontend (NodePort 30020)
 
 DNS (matbao.net, A records -> 34.120.179.221):
+  dragon-template.xyz          -> GCP LB -> Frontend:8080
   keycloak.dragon-template.xyz -> GCP LB -> Keycloak:8080
   api.dragon-template.xyz      -> GCP LB -> Backend:3001
 ```
@@ -1422,6 +1427,285 @@ TTL: 300
 
 ---
 
+### Step 25: Deploy Frontend Service len GKE
+**Muc dich**: Deploy React SPA frontend len GKE, serve boi nginx:alpine, khong can secrets (tat ca env vars la public URLs baked tai build time).
+
+**25a. Phan tich frontend codebase:**
+- Framework: **React 19 + Vite 7** (SPA - Single Page Application)
+- Production: **nginx:alpine** serve static files
+- Dockerfile: 3-stage (dev → build → production)
+- Container port: **8080** (non-root user appuser:1001)
+- Env vars (VITE_*): **Tat ca public**, baked vao static JS tai `npm run build` time
+
+| Env var | Gia tri production | Loai |
+|---|---|---|
+| `VITE_API_URL` | `https://api.dragon-template.xyz` | Public URL |
+| `VITE_KEYCLOAK_URL` | `https://keycloak.dragon-template.xyz` | Public URL |
+| `VITE_CHAT_TYPING_SPEED` | `65` | UI config (default trong code) |
+
+**Quyet dinh thiet ke:**
+| Quyet dinh | Ly do |
+|---|---|
+| Khong can K8s Secret | Tat ca env vars la public URLs, baked tai build time |
+| Docker build args | VITE_* phai truyen qua `--build-arg` (khong phai runtime env) |
+| NodePort 30020 | Tuong tu MongoDB/Keycloak/Backend, mien phi ($0) |
+| Container port 8080 | nginx chay non-root (appuser uid 1001), khong the bind port 80 |
+| Lightweight resources | nginx chi serve static files: CPU 50m-200m, Memory 64Mi-128Mi |
+
+**25b. Fix bug nginx.conf — listen port:**
+```
+# TRUOC (BUG): non-root user khong the bind port 80
+listen 80;
+
+# SAU (FIX): khop voi EXPOSE 8080 trong Dockerfile
+listen 8080;
+```
+- **Van de**: `frontend/nginx.conf` co `listen 80` nhung Dockerfile chay voi USER appuser (non-root, uid 1001)
+- Non-root users KHONG the bind ports < 1024
+- **Fix**: Doi `listen 80` → `listen 8080` de khop voi `EXPOSE 8080` trong Dockerfile
+
+**25c. Update Dockerfile — them build args cho VITE_* env vars:**
+```dockerfile
+# Them vao build stage, TRUOC `RUN npm run build`:
+ARG VITE_API_URL=http://localhost:3001
+ARG VITE_KEYCLOAK_URL=http://localhost:8080
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL
+```
+- `ARG` nhan gia tri tu `--build-arg` khi build Docker image
+- `ENV` truyen ARG vao environment de Vite doc duoc khi `npm run build`
+- Default values (`localhost`) dam bao local dev van hoat dong khi build khong co args
+
+**25d. Tao folder va files K8s:**
+```
+infra/gke/frontend/
+├── deployment.yaml     # Frontend Deployment (nginx:alpine, port 8080)
+└── service.yaml        # NodePort Service (8080 -> 30020)
+```
+
+**Cau hinh deployment:**
+- Image: `asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest`
+- Container port: 8080
+- Khong co env vars (tat ca da baked vao static files)
+- Resources: CPU request 50m/limit 200m, Memory request 64Mi/limit 128Mi
+- Liveness probe: HTTP GET `/` port 8080, initialDelaySeconds 10s
+- Readiness probe: HTTP GET `/` port 8080, initialDelaySeconds 5s
+- Strategy: Recreate (chi 1 replica)
+
+**25e. Cap nhat Ingress cho dragon-template.xyz:**
+
+Cap nhat `infra/gke/ingress/managed-cert.yaml` — them domain:
+```yaml
+spec:
+  domains:
+    - dragon-template.xyz              # Them moi
+    - keycloak.dragon-template.xyz
+    - api.dragon-template.xyz
+```
+
+Cap nhat `infra/gke/ingress/ingress.yaml` — them rule + doi defaultBackend:
+```yaml
+spec:
+  defaultBackend:
+    service:
+      name: frontend           # Doi tu keycloak sang frontend
+      port:
+        number: 8080
+  rules:
+    - host: dragon-template.xyz        # Them moi
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080
+    - host: keycloak.dragon-template.xyz
+      ...
+    - host: api.dragon-template.xyz
+      ...
+```
+
+**25f. Them job `deploy-frontend` vao `deploy-gke.yml`:**
+- Them `frontend/**` vao workflow paths trigger
+- Trigger: thay doi trong `frontend/` hoac `infra/gke/frontend/`
+- Steps:
+  1. Auth GCP (Workload Identity Federation)
+  2. Configure Docker for Artifact Registry
+  3. Build & push Docker image voi build args:
+     ```bash
+     docker build \
+       --build-arg VITE_API_URL=https://api.dragon-template.xyz \
+       --build-arg VITE_KEYCLOAK_URL=https://keycloak.dragon-template.xyz \
+       -t .../frontend:${{ github.sha }} \
+       -t .../frontend:latest \
+       --target production \
+       ./frontend
+     ```
+  4. Get GKE credentials
+  5. Create namespace (idempotent)
+  6. Deploy manifests (`kubectl apply -f infra/gke/frontend/`)
+  7. Wait for rollout (120s)
+  8. Show status
+- **Khong co step "Create Secret"** vi frontend khong can secrets
+
+**25g. Configure Docker for Artifact Registry:**
+```bash
+gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+# => gcloud credential helpers already registered correctly.
+```
+
+**25h. Build & push Docker image (THANH CONG ngay lan dau):**
+```bash
+docker build --platform linux/amd64 \
+  --build-arg VITE_API_URL=https://api.dragon-template.xyz \
+  --build-arg VITE_KEYCLOAK_URL=https://keycloak.dragon-template.xyz \
+  --target production \
+  -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest \
+  ./frontend
+# => ✓ 4102 modules transformed
+# => dist/index.html                     0.71 kB
+# => dist/assets/index-a0fu9h84.css     11.67 kB
+# => dist/assets/index-Dn905Y3-.js   1,598.37 kB (gzip: 534.64 kB)
+# => ✓ built in 20.82s
+
+docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest
+# => latest: digest: sha256:02f12eb2ff60... size: 856
+```
+- Da hoc tu Step 24: dung `--platform linux/amd64` ngay tu dau (Mac Apple Silicon)
+- Vite build warning: chunk > 500kB (co the code-split sau, khong urgent)
+
+**25i. Deploy frontend K8s manifests:**
+```bash
+kubectl apply -f infra/gke/frontend/
+# => deployment.apps/frontend created
+# => service/frontend created
+```
+
+**25j. Apply updated Ingress + ManagedCertificate:**
+```bash
+kubectl apply -f infra/gke/ingress/
+# => ingress.networking.k8s.io/dragon-ingress configured
+# => managedcertificate.networking.gke.io/dragon-cert configured
+```
+
+**25k. Wait for rollout — THANH CONG:**
+```bash
+kubectl rollout status deployment/frontend -n dragon --timeout=120s
+# => deployment "frontend" successfully rolled out
+```
+
+**25l. Verify tat ca services:**
+```bash
+kubectl get pods -n dragon
+# NAME                        READY   STATUS    RESTARTS       AGE
+# backend-769c6b584d-vk2ks    1/1     Running   4 (4m ago)     48m
+# frontend-57fc94657f-lspfs   1/1     Running   0              26s
+# keycloak-854c5cb8cb-24s8m   1/1     Running   0              5h47m
+# mongodb-0                   1/1     Running   0              6h48m
+
+kubectl get svc -n dragon
+# NAME       TYPE       CLUSTER-IP    PORT(S)
+# backend    NodePort   10.2.5.237    3001:30010/TCP
+# frontend   NodePort   10.2.5.74     8080:30020/TCP
+# keycloak   NodePort   10.2.6.28     8080:30080/TCP
+# mongodb    NodePort   10.2.15.193   27017:30017/TCP
+
+kubectl get ingress -n dragon
+# NAME             HOSTS                                                                      ADDRESS          PORTS
+# dragon-ingress   dragon-template.xyz,keycloak.dragon-template.xyz,api.dragon-template.xyz   34.120.179.221   80
+```
+
+**25m. GCE Backend registration — mat ~1 phut:**
+```bash
+# Ngay sau deploy, backends chi co backend + keycloak:
+kubectl describe ingress dragon-ingress -n dragon
+# ingress.kubernetes.io/backends:
+#   {"k8s1-...-backend-3001-...":"HEALTHY","k8s1-...-keycloak-8080-...":"HEALTHY"}
+# => THIEU frontend!
+
+# Trong thoi gian nay, request toi dragon-template.xyz bi route sai sang Keycloak:
+curl -sk https://dragon-template.xyz/
+# => 302 redirect to /admin/ (Keycloak behavior)
+
+# Sau ~1 phut, frontend backend duoc them:
+# ingress.kubernetes.io/backends:
+#   {"...-backend-3001-...":"HEALTHY","...-frontend-8080-...":"HEALTHY","...-keycloak-8080-...":"HEALTHY"}
+```
+- GCE Ingress controller can ~1 phut de tao backend va health check cho service moi
+- Trong thoi gian nay, traffic bi route qua defaultBackend cu (hoac Keycloak)
+- **Sau khi backend HEALTHY**: frontend hoat dong binh thuong
+
+**25n. Test frontend response:**
+```bash
+curl -sk https://dragon-template.xyz/ | head -5
+# <!doctype html>
+# <html lang="en">
+# <head>
+#   <meta charset="UTF-8" />
+#   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+```
+- Frontend tra ve HTML cua React SPA ✓
+- Vite assets loaded: `index-Dn905Y3-.js`, `index-a0fu9h84.css` ✓
+
+**25o. ManagedCertificate — SSL re-provisioning cho dragon-template.xyz:**
+```bash
+kubectl describe managedcertificate dragon-cert -n dragon
+# Status:
+#   Certificate Status: Active
+#   Domain Status:
+#     Domain: api.dragon-template.xyz       Status: Active
+#     Domain: keycloak.dragon-template.xyz   Status: Active
+#     # dragon-template.xyz CHUA co trong domain status (dang provision)
+# Events:
+#   Warning  BackendError  resourceInUseByAnotherResource
+#   Normal   Delete        Delete SslCertificate mcrt-228c3ba1-...
+#   Normal   Create        Create SslCertificate mcrt-228c3ba1-...
+```
+- GKE tu dong xoa cert cu va tao cert moi khi them domain (giong Step 24n)
+- Cert cu (keycloak + api) van Active, cert moi can provision cho dragon-template.xyz
+- `BackendError: resourceInUseByAnotherResource` la transient — GKE tu resolve
+- Thoi gian: **~15-60 phut**
+
+**SSL check (cert chua provision):**
+```bash
+curl -sv https://dragon-template.xyz/ 2>&1 | head -20
+# * LibreSSL SSL_connect: SSL_ERROR_SYSCALL
+# => SSL handshake fail vi cert chua cover dragon-template.xyz
+
+curl -sk https://dragon-template.xyz/ 2>&1 | head -5
+# <!doctype html>
+# => Voi -k (skip verify) thi van tra ve HTML (backend dang hoat dong)
+```
+- Sau khi cert provision xong, HTTPS se hoat dong binh thuong khong can `-k`
+
+**25p. Setup DNS tai matbao.net:**
+```
+Type: A
+Host: @          (hoac de trong)
+Value: 34.120.179.221
+TTL: 300
+```
+- User da them DNS truoc khi bat dau deploy
+
+**25q. Ket qua thanh cong:**
+- Frontend pod: **1/1 Running**
+- GCE Backend: **HEALTHY**
+- `curl -sk https://dragon-template.xyz/` tra ve React SPA HTML ✓
+- SSL cert: **Provisioning** (doi 15-60 phut cho domain dragon-template.xyz)
+- Sau khi cert Active: **https://dragon-template.xyz** se hoat dong day du
+
+**25r. Troubleshooting tong hop (2 van de):**
+
+| # | Van de | Nguyen nhan | Cach fix |
+|---|--------|-------------|----------|
+| 1 | Traffic route sai sang Keycloak (302 → /admin/) | GCE Ingress chua register frontend backend (~1 phut) | Doi ~1 phut de GCE tao backend + health check |
+| 2 | SSL handshake fail cho dragon-template.xyz | ManagedCertificate dang re-provision | Doi 15-60 phut, dung `-sk` de test truoc |
+
+---
+
 ## Ket qua cuoi cung (Updated)
 
 ### MongoDB on GKE
@@ -1464,10 +1748,25 @@ TTL: 300
 | Env (direct) | BACKEND_PORT, NODE_ENV, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID |
 | Env (secret) | MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
 
+### Frontend on GKE
+| Property | Value |
+|----------|-------|
+| Pod | frontend-* (Deployment) |
+| Image | asia-southeast1-docker.pkg.dev/.../dragon-images/frontend:latest |
+| Namespace | dragon |
+| Service | NodePort 30020 |
+| Domain | https://dragon-template.xyz |
+| Container port | 8080 (nginx:alpine, non-root user) |
+| CPU | request 50m, limit 200m |
+| Memory | request 64Mi, limit 128Mi |
+| Health check | / (liveness 10s, readiness 5s) |
+| Env vars | None (all VITE_* baked at Docker build time) |
+| Build args | VITE_API_URL, VITE_KEYCLOAK_URL |
+
 ### Ingress & SSL
 | Property | Value |
 |----------|-------|
-| Domains | keycloak.dragon-template.xyz, api.dragon-template.xyz |
+| Domains | dragon-template.xyz, keycloak.dragon-template.xyz, api.dragon-template.xyz |
 | DNS Provider | matbao.net (A records) |
 | Static IP | 34.120.179.221 (dragon-ingress-ip, global) |
 | Load Balancer | GCP HTTP(S) LB (auto by GKE Ingress) |
@@ -1484,6 +1783,8 @@ TTL: 300
 | WIF Pool | dragon-github-pool |
 | WIF Provider | dragon-github-provider |
 | Docker Registry | Artifact Registry (asia-southeast1-docker.pkg.dev) |
+| Workflow Triggers | `infra/gke/**`, `backend/**`, `frontend/**` |
+| Jobs | deploy-mongodb, deploy-ingress, deploy-keycloak, deploy-backend, deploy-frontend |
 | GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD, KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD, MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
 
 ---
@@ -1512,6 +1813,9 @@ TTL: 300
 | 26 | K8s Secret thieu `AI_PROVIDERS_CONFIG` | Quen them khi tao secret lan dau | `kubectl delete secret` + tao lai voi du 5 fields |
 | 27 | Docker image `ImagePullBackOff` - platform mismatch | Build arm64 tren Mac Apple Silicon, GKE nodes la amd64 | Rebuild voi `docker build --platform linux/amd64` |
 | 28 | ManagedCertificate `resourceInUseByAnotherResource` | Them domain moi vao cert da ton tai | GKE tu dong xoa/tao lai cert, doi ~15-60 phut re-provision |
+| 29 | nginx.conf `listen 80` nhung non-root user | Non-root users KHONG the bind ports < 1024 | Doi `listen 80` → `listen 8080` khop voi `EXPOSE 8080` |
+| 30 | Frontend traffic route sai sang Keycloak (302 → /admin/) | GCE Ingress chua register frontend backend (~1 phut) | Doi ~1 phut de GCE tao backend + health check |
+| 31 | SSL handshake fail cho dragon-template.xyz | ManagedCertificate dang re-provision sau khi them domain moi | Doi 15-60 phut, dung `curl -sk` de test truoc |
 
 ---
 
@@ -1558,6 +1862,19 @@ docker build --platform linux/amd64 \
 docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
 kubectl rollout restart deployment/backend -n dragon
 
+# Frontend: check logs & status
+kubectl logs deployment/frontend -n dragon
+kubectl describe deployment frontend -n dragon
+
+# Frontend: build & push Docker image (tu Mac Apple Silicon)
+docker build --platform linux/amd64 \
+  --build-arg VITE_API_URL=https://api.dragon-template.xyz \
+  --build-arg VITE_KEYCLOAK_URL=https://keycloak.dragon-template.xyz \
+  -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest \
+  --target production ./frontend
+docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest
+kubectl rollout restart deployment/frontend -n dragon
+
 # Destroy infrastructure
 PULUMI_CONFIG_PASSPHRASE="" pulumi destroy
 ```
@@ -1588,9 +1905,12 @@ infra/
 │   ├── backend/
 │   │   ├── deployment.yaml      # Backend Deployment (Express.js, Artifact Registry)
 │   │   └── service.yaml         # NodePort 30010
+│   ├── frontend/
+│   │   ├── deployment.yaml      # Frontend Deployment (React SPA + nginx:alpine)
+│   │   └── service.yaml         # NodePort 30020
 │   └── ingress/
-│       ├── managed-cert.yaml    # GCP Managed Certificate (auto SSL, multi-domain)
-│       └── ingress.yaml         # GKE Ingress (HTTP(S) LB)
+│       ├── managed-cert.yaml    # GCP Managed Certificate (auto SSL, 3 domains)
+│       └── ingress.yaml         # GKE Ingress (HTTP(S) LB, 3 host rules)
 └── .github/workflows/
-    └── deploy-gke.yml           # CI/CD: deploy-mongodb, deploy-ingress, deploy-keycloak, deploy-backend
+    └── deploy-gke.yml           # CI/CD: deploy-mongodb, deploy-ingress, deploy-keycloak, deploy-backend, deploy-frontend
 ```
