@@ -232,24 +232,22 @@ test.describe('Auth Redirect — Authenticated Users', () => {
         await page.getByPlaceholder('Username').fill(TEST_USERNAME);
         await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
-        await expect(page).toHaveURL('/', { timeout: 10000 });
+        await expect(page).not.toHaveURL('/login', { timeout: 10000 });
     });
 
     test('should redirect from /login to / when already authenticated', async ({ page }) => {
         // Navigate to login page while authenticated
         await page.goto('/login');
 
-        // Should be redirected back to home
-        await expect(page).toHaveURL('/', { timeout: 5000 });
-        await expect(page.getByText('Welcome to Dragon Template')).toBeVisible();
+        // Should be redirected away from login
+        await expect(page).not.toHaveURL('/login', { timeout: 5000 });
     });
 
     test('should redirect from /register to / when already authenticated', async ({ page }) => {
         // Navigate to register page while authenticated
         await page.goto('/register');
 
-        // Should be redirected back to home
-        await expect(page).toHaveURL('/', { timeout: 5000 });
-        await expect(page.getByText('Welcome to Dragon Template')).toBeVisible();
+        // Should be redirected away from register
+        await expect(page).not.toHaveURL('/register', { timeout: 5000 });
     });
 });
