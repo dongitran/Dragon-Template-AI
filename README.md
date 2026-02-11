@@ -4,7 +4,7 @@
 [![E2E Tests](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/e2e.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/e2e.yml)
 [![Deploy to GKE](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/deploy-gke.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/deploy-gke.yml)
 
-![Dragon Template AI Infrastructure](images/banner.png)
+![Dragon Template AI Infrastructure](images/banner.jpg)
 
 > AI-powered web chat that doesn't just chat — it creates workflows, roadmaps, and beautiful docs.
 
