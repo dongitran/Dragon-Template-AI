@@ -231,6 +231,12 @@ jobs:
             --from-literal=AI_PROVIDERS_CONFIG='${{ secrets.AI_PROVIDERS_CONFIG }}' \
             --from-literal=CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} \
             --from-literal=GCS_CREDENTIALS='${{ secrets.GCS_CREDENTIALS }}' \
+            --from-literal=GCS_BUCKET=${{ secrets.GCS_BUCKET }} \
+            --from-literal=GEMINI_IMAGE_MODEL=${{ secrets.GEMINI_IMAGE_MODEL }} \
+            --from-literal=IMAGE_DEFAULT_ASPECT_RATIO=${{ secrets.IMAGE_DEFAULT_ASPECT_RATIO }} \
+            --from-literal=IMAGE_DEFAULT_STYLE=${{ secrets.IMAGE_DEFAULT_STYLE }} \
+            --from-literal=IMAGE_MAX_RETRIES=${{ secrets.IMAGE_MAX_RETRIES }} \
+            --from-literal=IMAGE_TIMEOUT_MS=${{ secrets.IMAGE_TIMEOUT_MS }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Backend
