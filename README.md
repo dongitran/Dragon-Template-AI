@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/ci.yml)
 [![E2E Tests](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/e2e.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/e2e.yml)
+[![Deploy to GKE](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/deploy-gke.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/deploy-gke.yml)
 
 ![Dragon Template AI Infrastructure](images/banner.png)
 
