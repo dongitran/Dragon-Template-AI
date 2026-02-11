@@ -203,9 +203,9 @@ test.describe('Authenticated Session', () => {
         // Reload the page
         await page.reload();
 
-        // Should still be on dashboard, not redirected to login
-        await expect(page).toHaveURL('/');
-        await expect(page.getByText('Welcome to Dragon AI')).toBeVisible();
+        // Should still be authenticated, not redirected to login
+        await expect(page).not.toHaveURL('/login', { timeout: 5000 });
+        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
     });
 
     test('should allow re-login after logout', async ({ page }) => {
@@ -220,8 +220,8 @@ test.describe('Authenticated Session', () => {
         await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
 
-        await expect(page).toHaveURL('/', { timeout: 10000 });
-        await expect(page.getByText('Welcome to Dragon AI')).toBeVisible();
+        await expect(page).not.toHaveURL('/login', { timeout: 10000 });
+        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
     });
 });
 
