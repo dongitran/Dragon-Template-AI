@@ -11,13 +11,44 @@ on:
   workflow_dispatch:
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      mongodb: ${{ steps.filter.outputs.mongodb }}
+      ingress: ${{ steps.filter.outputs.ingress }}
+      keycloak: ${{ steps.filter.outputs.keycloak }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            mongodb:
+              - 'infra/gke/mongodb/**'
+            ingress:
+              - 'infra/gke/ingress/**'
+            keycloak:
+              - 'infra/gke/keycloak/**'
+            backend:
+              - 'backend/**'
+              - 'infra/gke/backend/**'
+            frontend:
+              - 'frontend/**'
+              - 'infra/gke/frontend/**'
+
   deploy-mongodb:
     name: Deploy MongoDB
     runs-on: ubuntu-latest
+    needs: [detect-changes]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'infra/gke/mongodb/') ||
-      contains(toJSON(github.event.commits.*.added), 'infra/gke/mongodb/')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.detect-changes.outputs.mongodb == 'true'
+      )
     permissions:
       id-token: write
       contents: read
@@ -62,10 +93,12 @@ jobs:
   deploy-ingress:
     name: Deploy Ingress
     runs-on: ubuntu-latest
+    needs: [detect-changes]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'infra/gke/ingress/') ||
-      contains(toJSON(github.event.commits.*.added), 'infra/gke/ingress/')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.detect-changes.outputs.ingress == 'true'
+      )
     permissions:
       id-token: write
       contents: read
@@ -99,10 +132,12 @@ jobs:
   deploy-keycloak:
     name: Deploy Keycloak
     runs-on: ubuntu-latest
+    needs: [detect-changes]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'infra/gke/keycloak/') ||
-      contains(toJSON(github.event.commits.*.added), 'infra/gke/keycloak/')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.detect-changes.outputs.keycloak == 'true'
+      )
     permissions:
       id-token: write
       contents: read
@@ -147,12 +182,12 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    needs: [detect-changes]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'backend/') ||
-      contains(toJSON(github.event.commits.*.added), 'backend/') ||
-      contains(toJSON(github.event.commits.*.modified), 'infra/gke/backend/') ||
-      contains(toJSON(github.event.commits.*.added), 'infra/gke/backend/')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.detect-changes.outputs.backend == 'true'
+      )
     permissions:
       id-token: write
       contents: read
@@ -214,12 +249,12 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
+    needs: [detect-changes]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'frontend/') ||
-      contains(toJSON(github.event.commits.*.added), 'frontend/') ||
-      contains(toJSON(github.event.commits.*.modified), 'infra/gke/frontend/') ||
-      contains(toJSON(github.event.commits.*.added), 'infra/gke/frontend/')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.detect-changes.outputs.frontend == 'true'
+      )
     permissions:
       id-token: write
       contents: read
