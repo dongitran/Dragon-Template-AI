@@ -450,8 +450,6 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 **Deliverable:** User types `/project-plan My Fitness App` → AI generates complete project plan with images → Opens in Notion-style BlockNote editor → User edits, replaces images → Exports to PDF or Markdown.
 
-**Estimated Timeline**: 19 days (broken down in phase8_implementation_plan.md)
-
 **Note**: Image generation via Gemini Imagen can take 30-60 seconds for a full plan (text: ~5-10s, images: ~5-10s each × 3-5 images, GCS upload: ~2-5s). Show staged progress indicator to user.
 
 ---
