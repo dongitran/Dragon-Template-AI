@@ -1706,6 +1706,105 @@ TTL: 300
 
 ---
 
+### Step 26: Setup Google Cloud Storage (GCS) cho file upload
+**Muc dich**: Tao GCS bucket de luu tru file upload (avatar, attachments, etc.) va service account de truy cap tu backend.
+
+**26a. Tao GCS bucket:**
+```bash
+gcloud storage buckets create gs://dragon-template-storage \
+  --project=fair-backbone-479312-h7 \
+  --location=asia-southeast1 \
+  --uniform-bucket-level-access \
+  --public-access-prevention
+# => Creating gs://dragon-template-storage/...
+```
+- **Location**: `asia-southeast1` (cung region voi GKE cluster)
+- **Uniform bucket-level access**: Don gian hoa IAM, khong dung ACL per-object
+- **Public access prevention**: Chan truy cap public, chi cho phep qua service account
+
+**26b. Verify bucket da tao:**
+```bash
+gcloud storage buckets describe gs://dragon-template-storage --format="json(name,location,iamConfiguration)"
+# => {
+#   "iamConfiguration": {
+#     "publicAccessPrevention": "enforced",
+#     "uniformBucketLevelAccess": { "enabled": true }
+#   },
+#   "location": "ASIA-SOUTHEAST1",
+#   "name": "dragon-template-storage"
+# }
+```
+
+**26c. Tao dedicated service account cho GCS:**
+```bash
+gcloud iam service-accounts create dragon-storage \
+  --display-name="Dragon GCS Storage" \
+  --project=fair-backbone-479312-h7
+# => Created service account [dragon-storage].
+```
+- Tao rieng service account `dragon-storage` (khong dung chung `dragon-deployer` cua CI/CD)
+- Separation of concerns: CI/CD deployer chi can deploy, storage SA chi can read/write objects
+
+**26d. Grant `roles/storage.objectAdmin` cho service account tren bucket:**
+```bash
+gcloud storage buckets add-iam-policy-binding gs://dragon-template-storage \
+  --member="serviceAccount:dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+# => Updated IAM policy for bucket [dragon-template-storage].
+# => bindings:
+# => - members:
+# =>   - serviceAccount:dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com
+# =>   role: roles/storage.objectAdmin
+```
+- `roles/storage.objectAdmin`: Quyen create, read, update, delete objects trong bucket
+- Chi bind tren bucket nay, khong phai project-level (least privilege)
+
+**26e. Tao JSON key cho service account:**
+```bash
+gcloud iam service-accounts keys create /tmp/dragon-storage-key.json \
+  --iam-account=dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com \
+  --project=fair-backbone-479312-h7
+# => created key [<KEY_ID>] for [dragon-storage@...iam.gserviceaccount.com]
+```
+- Key ID: xem trong `secret.md`
+- Key file luu tai `/tmp/dragon-storage-key.json` (da copy vao `secret.md` va xoa file tmp)
+
+**26f. Cap nhat secret.md:**
+- Them section "GCS (Google Cloud Storage)" vao `secret.md` voi:
+  - Bucket name, location, service account email
+  - Full JSON key (private key)
+  - Usage example voi `@google-cloud/storage`
+- Them `GCS_CREDENTIALS` vao bang GitHub Secrets
+
+**26g. Usage trong code (Node.js):**
+```javascript
+const { Storage } = require('@google-cloud/storage');
+const storage = new Storage({
+  projectId: 'fair-backbone-479312-h7',
+  credentials: JSON.parse(process.env.GCS_CREDENTIALS)
+});
+const bucket = storage.bucket('dragon-template-storage');
+
+// Upload file
+await bucket.upload(localFilePath, { destination: 'uploads/file.png' });
+
+// Generate signed URL (tam thoi, co thoi han)
+const [url] = await bucket.file('uploads/file.png').getSignedUrl({
+  action: 'read',
+  expires: Date.now() + 15 * 60 * 1000 // 15 phut
+});
+```
+
+**26h. Ket qua:**
+- GCS bucket: **dragon-template-storage** (asia-southeast1) ✓
+- Service account: **dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com** ✓
+- IAM role: **roles/storage.objectAdmin** (bucket-level) ✓
+- JSON key: Da luu vao `secret.md` ✓
+- Public access: **Blocked** (enforced) ✓
+- Uniform bucket-level access: **Enabled** ✓
+
+---
+
 ## Ket qua cuoi cung (Updated)
 
 ### MongoDB on GKE
@@ -1763,6 +1862,18 @@ TTL: 300
 | Env vars | None (all VITE_* baked at Docker build time) |
 | Build args | VITE_API_URL, VITE_KEYCLOAK_URL |
 
+### GCS (Google Cloud Storage)
+| Property | Value |
+|----------|-------|
+| Bucket | dragon-template-storage |
+| Location | asia-southeast1 |
+| Service Account | dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com |
+| IAM Role | roles/storage.objectAdmin (bucket-level) |
+| Uniform Bucket-Level Access | Enabled |
+| Public Access Prevention | Enforced |
+| Key ID | Xem trong `secret.md` |
+| Usage | `@google-cloud/storage` + `GCS_CREDENTIALS` env var |
+
 ### Ingress & SSL
 | Property | Value |
 |----------|-------|
@@ -1785,7 +1896,7 @@ TTL: 300
 | Docker Registry | Artifact Registry (asia-southeast1-docker.pkg.dev) |
 | Workflow Triggers | `infra/gke/**`, `backend/**`, `frontend/**` |
 | Jobs | deploy-mongodb, deploy-ingress, deploy-keycloak, deploy-backend, deploy-frontend |
-| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD, KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD, MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN |
+| GitHub Secrets | MONGO_USERNAME, MONGO_PASSWORD, KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD, MONGO_URI, KEYCLOAK_CLIENT_SECRET, GEMINI_API_KEYS, AI_PROVIDERS_CONFIG, CORS_ORIGIN, GCS_CREDENTIALS |
 
 ---
 
@@ -1874,6 +1985,21 @@ docker build --platform linux/amd64 \
   --target production ./frontend
 docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest
 kubectl rollout restart deployment/frontend -n dragon
+
+# GCS: list objects in bucket
+gcloud storage ls gs://dragon-template-storage/
+gcloud storage ls gs://dragon-template-storage/uploads/
+
+# GCS: upload/download files
+gcloud storage cp local-file.png gs://dragon-template-storage/uploads/
+gcloud storage cp gs://dragon-template-storage/uploads/file.png ./downloaded.png
+
+# GCS: check bucket IAM policy
+gcloud storage buckets get-iam-policy gs://dragon-template-storage
+
+# GCS: check service account keys
+gcloud iam service-accounts keys list \
+  --iam-account=dragon-storage@fair-backbone-479312-h7.iam.gserviceaccount.com
 
 # Destroy infrastructure
 PULUMI_CONFIG_PASSPHRASE="" pulumi destroy
