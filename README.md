@@ -1,6 +1,7 @@
 # 🐉 Dragon Template AI
 
 [![CI](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/ci.yml)
+[![E2E Tests](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/e2e.yml/badge.svg)](https://github.com/dongitran/Dragon-Template-AI/actions/workflows/e2e.yml)
 
 > AI-powered web chat that doesn't just chat — it creates workflows, roadmaps, and beautiful docs.
 
