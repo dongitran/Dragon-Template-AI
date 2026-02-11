@@ -362,29 +362,97 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ## Phase 8: Command — Generate Project Plan
 
-**Goal:** Add the "Generate Project Plan" command that creates a rich markdown document in an editor view.
+**Goal:** Add the "Generate Project Plan" command that creates a rich block-based document in a Notion-style editor.
 
-- [ ] Backend: API endpoint to generate a structured project plan via AI
-  - Output: Markdown with headings, bullet points, tables, charts, and image placeholders
-- [ ] Frontend: Markdown Document Editor (right panel)
-  - Rich WYSIWYG editor (e.g., TipTap, Milkdown, or BlockNote)
-  - Support rendering: headings, lists, tables, code blocks, images, charts
-  - Inline editing — users can edit the generated content directly
-  - Slash command support (`/` to insert elements)
-- [ ] Image handling in documents:
-  - AI-generated images or user-uploaded images
-  - Upload to S3 (or compatible storage) and display via URL
-  - Click on image → context menu to replace/upload image
-  - Image options: aspect ratio, filters, resize
-- [ ] Save generated document as a reusable template
-- [ ] Download document (PDF/Markdown export)
-- [ ] Backend: Unit tests for plan generation service
-- [ ] Backend: Integration tests for plan API endpoints
-- [ ] E2E: UI tests for document editor (create, edit, render, export)
-- [ ] E2E: API tests for plan generation and storage
+**Technology Decision**: **BlockNote** (14K⭐ GitHub, built on TipTap/ProseMirror)
+- Notion-like UI out-of-the-box with slash commands
+- Native image upload and block-based architecture
+- Better fit than TipTap (requires full UI build) or Novel.sh (smaller community)
+
+**Detailed Implementation Plan**: See [phase8_implementation_plan.md](file:///Users/dongtran/.gemini/antigravity/brain/dde358c6-90f2-4cb6-99c8-a0d9da82818d/phase8_implementation_plan.md)
+
+### 8.1 Backend: Document Model & Routes
+
+- [ ] Create `Document` model (mongoose schema)
+  - Fields: userId, sessionId, title, type, content (BlockNote JSON), metadata, assets[]
+  - Support document types: 'project-plan', 'workflow', 'roadmap', 'sprint'
+- [ ] Create `/api/commands/generate-plan` endpoint
+  - Accept: sessionId, prompt, options (includeImages, imageStyle, sections)
+  - Generate plan structure + content via Gemini AI
+  - Generate 3-5 images via Gemini Imagen API
+  - Upload images to GCS
+  - Return: documentId, title, content (BlockNote JSON), assets[]
+- [ ] Create `/api/documents/:id` endpoints (GET, PUT)
+- [ ] Create `/api/documents/:id/export` endpoint (PDF/Markdown)
+- [ ] Create `/api/documents/:id/assets/upload` endpoint (for user image uploads)
+
+### 8.2 Backend: AI Services
+
+- [ ] Create `planGenerationService.js`
+  - `generateProjectPlan(prompt, options)` — orchestrate full generation
+  - `generatePlanContent(prompt)` — call Gemini for markdown content
+  - `extractImagePlaceholders(markdown)` — parse markdown for image needs
+  - `generatePlanImages(placeholders)` — call Gemini Imagen API
+  - `uploadImagesToGCS(images)` — upload generated images
+  - `markdownToBlockNote(markdown)` — convert to BlockNote JSON
+- [ ] Create `pdfExportService.js`
+  - Use Puppeteer to convert BlockNote content to PDF
+  - Support images, formatting, page breaks
+
+### 8.3 Frontend: Document Editor
+
+- [ ] Install BlockNote: `@blocknote/core` and `@blocknote/react`
+- [ ] Create `BlockNoteEditor.jsx` component
+  - Wrap BlockNote editor with image upload handler
+  - Custom slash commands: "/ai-image" to generate images
+  - Support drag-drop, paste, file upload for images
+  - Auto-save every 5 seconds
+- [ ] Create `DocumentEditorPage.jsx` (route: `/documents/:id`)
+  - Full-screen editor with BlockNote instance
+  - Top toolbar: Title input, Save, Export (PDF/Markdown), Share, Close
+  - Loading states during AI generation
+  - Error handling and user feedback
+
+### 8.4 Frontend: Chat Integration
+
+- [ ] Modify `ChatPage.jsx` to detect `/project-plan [description]` command
+  - Call `POST /api/commands/generate-plan`
+  - Show progress: "Generating plan structure..." → "Creating images (1/4)..." → "Finalizing..."
+  - On completion, open DocumentEditorPage with generated content
+  - Add document link to chat history (clickable)
+
+### 8.5 Testing
+
+- [ ] Backend: Unit tests for `planGenerationService.js` (15 tests)
+  - Plan generation with all/custom sections
+  - Image placeholder extraction and generation
+  - GCS upload and URL replacement
+  - Markdown to BlockNote conversion
+  - Error handling (Gemini API, GCS failures)
+- [ ] Backend: Unit tests for `pdfExportService.js` (5 tests)
+- [ ] Backend: Integration tests for documents API (8 tests)
+  - POST /api/commands/generate-plan → full flow
+  - GET, PUT /api/documents/:id
+  - POST /api/documents/:id/export (PDF + Markdown)
+  - POST /api/documents/:id/assets/upload
+  - Ownership verification, session association
+- [ ] Frontend: Component tests for `BlockNoteEditor.jsx` (10 tests)
+  - Render, content changes, image upload (file/drag-drop)
+  - Slash commands, read-only mode, auto-save
+  - Toolbar formatting, export trigger
+- [ ] E2E: UI tests for document editor (12 tests)
+  - `/project-plan` command → document generated
+  - Editor opens with content
+  - Slash menu, insert elements, image upload/paste
+  - Edit, save persistence, export (PDF/Markdown)
+- [ ] E2E: API tests for documents endpoints (8 tests)
 - [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
-**Deliverable:** "Generate Project Plan" command opens a full document editor with rich content, editable images, and export capability.
+**Deliverable:** User types `/project-plan My Fitness App` → AI generates complete project plan with images → Opens in Notion-style BlockNote editor → User edits, replaces images → Exports to PDF or Markdown.
+
+**Estimated Timeline**: 19 days (broken down in phase8_implementation_plan.md)
+
+**Note**: Image generation via Gemini Imagen can take 30-60 seconds for a full plan (text: ~5-10s, images: ~5-10s each × 3-5 images, GCS upload: ~2-5s). Show staged progress indicator to user.
 
 ---
 
