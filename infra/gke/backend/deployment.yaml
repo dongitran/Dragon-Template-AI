@@ -61,6 +61,37 @@ spec:
                 secretKeyRef:
                   name: backend-secret
                   key: GCS_CREDENTIALS
+            - name: GCS_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GCS_BUCKET
+            - name: GEMINI_IMAGE_MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GEMINI_IMAGE_MODEL
+            - name: IMAGE_DEFAULT_ASPECT_RATIO
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: IMAGE_DEFAULT_ASPECT_RATIO
+            - name: IMAGE_DEFAULT_STYLE
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: IMAGE_DEFAULT_STYLE
+            - name: IMAGE_MAX_RETRIES
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: IMAGE_MAX_RETRIES
+            - name: IMAGE_TIMEOUT_MS
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: IMAGE_TIMEOUT_MS
+
           resources:
             requests:
               memory: "256Mi"
