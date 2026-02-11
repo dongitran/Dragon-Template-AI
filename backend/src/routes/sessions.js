@@ -1,6 +1,7 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const Session = require('../models/Session');
+const Document = require('../models/Document');
 
 const router = express.Router();
 
@@ -70,10 +71,16 @@ router.get('/', authMiddleware, async (req, res) => {
 // GET /api/sessions/:id — get session with messages
 router.get('/:id', authMiddleware, async (req, res) => {
     try {
-        const session = await Session.findOne({
-            _id: req.params.id,
-            userId: req.user.sub,
-        }).lean();
+        const [session, documents] = await Promise.all([
+            Session.findOne({
+                _id: req.params.id,
+                userId: req.user.sub,
+            }).lean(),
+            Document.find({
+                sessionId: req.params.id,
+                userId: req.user.sub,
+            }).select('_id title type').lean(),
+        ]);
 
         if (!session) {
             return res.status(404).json({ error: 'Session not found' });
@@ -88,7 +95,13 @@ router.get('/:id', authMiddleware, async (req, res) => {
                 role: m.role,
                 content: m.content,
                 attachments: m.attachments || [],
+                metadata: m.metadata || null,
                 createdAt: m.createdAt,
+            })),
+            documents: documents.map(d => ({
+                id: d._id,
+                title: d.title,
+                type: d.type,
             })),
             createdAt: session.createdAt,
             updatedAt: session.updatedAt,

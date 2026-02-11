@@ -68,7 +68,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/upload', uploadRoutes);
+// Mount both /api/documents and /api/commands from the same router
+// This allows /api/documents (CRUD) and /api/commands/generate-plan to both work
 app.use('/api/documents', documentRoutes);
+app.use('/api/commands', documentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

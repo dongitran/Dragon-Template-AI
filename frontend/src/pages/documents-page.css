@@ -1,0 +1,205 @@
+/* Documents Page */
+
+.documents-page {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.documents-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.documents-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+}
+
+.documents-count {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-top: 2px;
+}
+
+/* Document cards grid */
+.documents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.document-card {
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.document-card:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+    background: #1a1a2e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.document-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.document-card-icon {
+    font-size: 20px;
+}
+
+.document-card-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(108, 92, 231, 0.12);
+    color: #a29bfe;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.document-card-delete {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.document-card:hover .document-card-delete {
+    opacity: 1;
+}
+
+.document-card-delete:hover {
+    color: #ff4757;
+    background: rgba(255, 71, 87, 0.1);
+}
+
+.document-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.document-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.document-card-date {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.document-card-ai-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(46, 213, 115, 0.1);
+    color: #2ed573;
+    font-weight: 500;
+}
+
+/* Empty state */
+.documents-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+}
+
+.documents-empty-icon {
+    font-size: 48px;
+    opacity: 0.3;
+    margin-bottom: 16px;
+}
+
+.documents-empty h3 {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+.documents-empty p {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 14px;
+    margin: 0 0 24px;
+}
+
+.documents-empty code {
+    background: rgba(108, 92, 231, 0.15);
+    color: #a29bfe;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.documents-cta-btn {
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.documents-cta-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.4);
+}
+
+/* Loading state */
+.documents-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    gap: 16px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.documents-loading .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(108, 92, 231, 0.2);
+    border-top-color: #6C5CE7;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

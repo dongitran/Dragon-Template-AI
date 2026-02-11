@@ -4,6 +4,7 @@ import { Select } from 'antd';
 import ChatMessage from '../components/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import TypingIndicator from '../components/TypingIndicator';
+import WorkspacePreview from '../components/WorkspacePreview';
 import './chat.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -18,6 +19,13 @@ function ChatPage() {
     const [selectedModel, setSelectedModel] = useState('');
     const [sessionId, setSessionId] = useState(urlSessionId || null);
     const [sessionTitle, setSessionTitle] = useState('New Chat');
+
+    // --- Split View & Plan Streaming State ---
+    const [isSplitView, setIsSplitView] = useState(false);
+    const [streamingPlan, setStreamingPlan] = useState('');
+    const [planStatus, setPlanStatus] = useState('');
+    const [activePlan, setActivePlan] = useState(null); // { documentId, title } — which plan is shown in workspace
+
     const messagesEndRef = useRef(null);
     const abortControllerRef = useRef(null);
     const isStreamingRef = useRef(false);
@@ -41,6 +49,8 @@ function ChatPage() {
             setSessionId(null);
             setMessages([]);
             setSessionTitle('New Chat');
+            setIsSplitView(false);
+            setActivePlan(null);
         }
     }, [urlSessionId]);
 
@@ -78,7 +88,33 @@ function ChatPage() {
             });
             if (res.ok) {
                 const data = await res.json();
-                setMessages(data.messages || []);
+                const msgs = data.messages || [];
+
+                // Restore plan action state from message metadata
+                for (let i = 0; i < msgs.length; i++) {
+                    const meta = msgs[i].metadata;
+                    if (meta?.planAction && meta?.documentId) {
+                        msgs[i] = { ...msgs[i], planAction: true, documentId: meta.documentId };
+                    }
+                }
+
+                // Fallback: for old sessions without metadata, match documents to messages
+                const planDocs = (data.documents || []).filter(d => d.type === 'project-plan');
+                if (planDocs.length > 0) {
+                    const hasMetadata = msgs.some(m => m.planAction && m.documentId);
+                    if (!hasMetadata) {
+                        // Old session — link last plan doc to last "Project Plan Generated!" message
+                        const lastPlanDoc = planDocs[planDocs.length - 1];
+                        for (let i = msgs.length - 1; i >= 0; i--) {
+                            if (msgs[i].role === 'assistant' && msgs[i].content?.includes('Project Plan Generated')) {
+                                msgs[i] = { ...msgs[i], planAction: true, documentId: lastPlanDoc.id };
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                setMessages(msgs);
                 setSessionTitle(data.title || 'New Chat');
                 if (data.model) setSelectedModel(data.model);
             } else {
@@ -89,6 +125,35 @@ function ChatPage() {
         } catch (err) {
             console.error('Failed to load session:', err);
         }
+    };
+
+    const loadPlanContent = async (documentId) => {
+        try {
+            const mdRes = await fetch(`${API_BASE}/api/documents/${documentId}/export`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ format: 'markdown' }),
+            });
+            if (mdRes.ok) {
+                const markdown = await mdRes.text();
+                setStreamingPlan(markdown);
+            }
+        } catch (err) {
+            console.error('Failed to load plan content:', err);
+        }
+    };
+
+    const openPlan = (documentId, title) => {
+        setActivePlan({ documentId, title });
+        setStreamingPlan('');
+        setPlanStatus('');
+        setIsSplitView(true);
+        loadPlanContent(documentId);
+    };
+
+    const closePlan = () => {
+        setIsSplitView(false);
     };
 
     // Upload files to backend, returns attachment metadata array
@@ -116,6 +181,159 @@ function ChatPage() {
     };
 
     const handleSend = useCallback(async (text, files = []) => {
+        // --- /project-plan command detection ---
+        if (text && text.trim().startsWith('/project-plan')) {
+            const planPrompt = text.trim().replace(/^\/project-plan\s*/, '').trim();
+            if (!planPrompt) {
+                setMessages(prev => [
+                    ...prev,
+                    { role: 'user', content: text },
+                    { role: 'assistant', content: '**Usage:** `/project-plan [description]`\n\nExample: `/project-plan My Fitness App`' },
+                ]);
+                return;
+            }
+
+            // Enable Split View — streaming content renders directly in workspace
+            setIsSplitView(true);
+            setStreamingPlan('');
+            setPlanStatus('');
+            setActivePlan(null);
+            setIsStreaming(true);
+            isStreamingRef.current = true;
+
+            // Show user message + live status assistant message
+            setMessages(prev => [
+                ...prev,
+                { role: 'user', content: text },
+                { role: 'assistant', content: 'Generating project plan...' },
+            ]);
+
+            try {
+                const res = await fetch(`${API_BASE}/api/commands/generate-plan`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: planPrompt,
+                        sessionId: sessionId || undefined,
+                        options: { includeImages: true },
+                    }),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Plan generation failed');
+                }
+
+                // SSE Reader (with line buffering for large payloads)
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedPlan = '';
+                let planCompleted = false;
+                let pendingPlanData = null; // holds plan data until images are ready
+                let sseBuffer = '';
+
+                const showPlanCompleted = (planData) => {
+                    setActivePlan(planData);
+                    setPlanStatus('');
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        updated[updated.length - 1] = {
+                            role: 'assistant',
+                            content: `**Project Plan Generated!**\n\n**${planData.title}**`,
+                            planAction: true,
+                            documentId: planData.documentId,
+                        };
+                        return updated;
+                    });
+                };
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    sseBuffer += decoder.decode(value, { stream: true });
+                    const lines = sseBuffer.split('\n');
+                    sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const data = JSON.parse(line.slice(6));
+
+                            if (data.sessionId) {
+                                // Backend created/confirmed session
+                                setSessionId(data.sessionId);
+                                navigate(`/chat/${data.sessionId}`, { replace: true });
+                            } else if (data.type === 'text') {
+                                accumulatedPlan += data.chunk;
+                                setStreamingPlan(accumulatedPlan);
+                            } else if (data.type === 'status') {
+                                setPlanStatus(data.message);
+                                // Only update chat message before plan is complete
+                                if (!planCompleted) {
+                                    setMessages(prev => {
+                                        const updated = [...prev];
+                                        updated[updated.length - 1] = {
+                                            role: 'assistant',
+                                            content: `${data.message}`,
+                                        };
+                                        return updated;
+                                    });
+                                }
+                            } else if (data.type === 'complete') {
+                                planCompleted = true;
+                                if (data.finalMarkdown) {
+                                    setStreamingPlan(data.finalMarkdown);
+                                }
+                                // Don't show planAction yet — wait for images or stream end
+                                pendingPlanData = { documentId: data.documentId, title: data.title };
+                            } else if (data.type === 'images-ready') {
+                                // Images generated — update workspace with real URLs
+                                if (data.finalMarkdown) {
+                                    setStreamingPlan(data.finalMarkdown);
+                                }
+                                // Now show the completed message with action buttons
+                                if (pendingPlanData) {
+                                    showPlanCompleted(pendingPlanData);
+                                    pendingPlanData = null;
+                                }
+                            } else if (data.type === 'error') {
+                                throw new Error(data.message);
+                            }
+                        } catch (e) {
+                            if (e.message && !e.message.includes('JSON')) throw e;
+                            // Skip JSON parse errors (incomplete lines)
+                        }
+                    }
+                }
+
+                // Stream ended — if images-ready never came (no images), show completion now
+                if (pendingPlanData) {
+                    showPlanCompleted(pendingPlanData);
+                }
+            } catch (err) {
+                console.error('Plan generation failed:', err);
+                setIsSplitView(false);
+                setMessages(prev => {
+                    const updated = [...prev];
+                    if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+                        updated[updated.length - 1] = {
+                            role: 'assistant',
+                            content: `**Plan Generation Failed**\n\n${err.message}`,
+                        };
+                    } else {
+                        updated.push({ role: 'assistant', content: `**Plan Generation Failed**\n\n${err.message}` });
+                    }
+                    return updated;
+                });
+            } finally {
+                setIsStreaming(false);
+                isStreamingRef.current = false;
+            }
+            return;
+        }
+
         const userMessage = { role: 'user', content: text || '' };
 
         // Upload files first if any
@@ -321,50 +539,90 @@ function ChatPage() {
         })),
     }));
 
+    // Check if any message has a plan (for keeping WorkspacePreview mounted)
+    const hasPlanMessage = messages.some(m => m.planAction && m.documentId);
+
     return (
-        <div className="chat-container">
-            {/* Messages area */}
-            <div className="chat-messages">
-                <div className="chat-messages-inner">
-                    {messages.length === 0 ? (
-                        <div className="chat-empty">
-                            <div className="chat-empty-icon">🐉</div>
-                            <h3>Welcome to Dragon Template</h3>
-                            <p>Start a conversation by typing a message below</p>
-                        </div>
-                    ) : (
-                        <>
-                            {messages.map((msg, i) => {
-                                // Skip rendering empty assistant message during streaming — TypingIndicator replaces it
-                                const isLastEmpty = isStreaming && i === messages.length - 1
-                                    && msg.role === 'assistant' && msg.content === '';
-                                if (isLastEmpty) return null;
-                                return <ChatMessage key={i} message={msg} />;
-                            })}
-                            {isStreaming && (
-                                // Show typing indicator when:
-                                // 1. No assistant message yet (waiting for fetch response)
-                                // 2. Empty assistant message exists (waiting for first chunk)
-                                messages[messages.length - 1]?.role !== 'assistant' ||
-                                messages[messages.length - 1]?.content === ''
-                            ) && (
-                                    <TypingIndicator />
-                                )}
-                        </>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
+        <div className={`chat-container ${isSplitView ? 'split-view' : ''}`}>
+            {/* Main Center Area: Workspace Preview */}
+            <div className="chat-main-area">
+                {(isSplitView || hasPlanMessage) && (
+                    <WorkspacePreview
+                        content={streamingPlan}
+                        status={planStatus}
+                        title="Project Plan Construction"
+                        onClose={closePlan}
+                    />
+                )}
             </div>
 
-            {/* Input area */}
-            <ChatInput
-                onSend={handleSend}
-                isStreaming={isStreaming}
-                onStop={handleStop}
-                modelOptions={modelOptions}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-            />
+            {/* Right Panel: Chat Messages & Input */}
+            <div className="chat-right-panel">
+                <div className="chat-messages">
+                    <div className="chat-messages-inner">
+                        {messages.length === 0 && !isSplitView && (
+                            <div className="chat-empty">
+                                <div className="chat-empty-icon">🐉</div>
+                                <h3>Welcome to Dragon Template</h3>
+                                <p>Start a conversation by typing a message below</p>
+                            </div>
+                        )}
+                        {messages.length > 0 && (
+                            <>
+                                {messages.map((msg, i) => {
+                                    const isLastEmpty = isStreaming && i === messages.length - 1
+                                        && msg.role === 'assistant' && msg.content === '';
+                                    if (isLastEmpty) return null;
+                                    const isActivePlan = activePlan?.documentId === msg.documentId;
+                                    return (
+                                        <div key={i}>
+                                            <ChatMessage message={msg} />
+                                            {msg.planAction && msg.documentId && (
+                                                <div className="plan-action-buttons">
+                                                    <button
+                                                        className="plan-action-btn primary"
+                                                        onClick={() => {
+                                                            if (isSplitView && isActivePlan) {
+                                                                closePlan();
+                                                            } else {
+                                                                openPlan(msg.documentId, msg.content);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {isSplitView && isActivePlan ? 'Hide Plan' : 'View Plan'}
+                                                    </button>
+                                                    <button
+                                                        className="plan-action-btn"
+                                                        onClick={() => navigate(`/documents/${msg.documentId}`)}
+                                                    >
+                                                        Open in Editor
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                {isStreaming && (
+                                    messages[messages.length - 1]?.role !== 'assistant' ||
+                                    messages[messages.length - 1]?.content === ''
+                                ) && <TypingIndicator />}
+                            </>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+                </div>
+
+                <div className="chat-right-panel-input">
+                    <ChatInput
+                        onSend={handleSend}
+                        isStreaming={isStreaming}
+                        onStop={handleStop}
+                        modelOptions={modelOptions}
+                        selectedModel={selectedModel}
+                        onModelChange={setSelectedModel}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

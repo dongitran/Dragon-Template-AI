@@ -23,6 +23,9 @@ const messageSchema = new mongoose.Schema({
         type: [attachmentSchema],
         default: [],
     },
+    metadata: {
+        type: mongoose.Schema.Types.Mixed,
+    },
 }, {
     timestamps: { createdAt: true, updatedAt: false },
     _id: true,
