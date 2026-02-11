@@ -1,0 +1,12 @@
+{
+    "name": "dragon-infra-scripts",
+    "version": "1.0.0",
+    "description": "Infrastructure utility scripts",
+    "type": "module",
+    "scripts": {
+        "generate-image": "node generate-infra-image.js"
+    },
+    "dependencies": {
+        "@google/genai": "^1.0.0"
+    }
+}
