@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { SendOutlined, StopOutlined, PaperClipOutlined, CloseOutlined, FileOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { SendOutlined, StopOutlined, PlusOutlined, CloseOutlined, FileOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { Select } from 'antd';
 
 const ACCEPTED_TYPES = '.pdf,.csv,.png,.jpg,.jpeg';
@@ -243,7 +243,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                             disabled={isStreaming || pendingFiles.length >= MAX_FILES}
                             title={pendingFiles.length >= MAX_FILES ? `Max ${MAX_FILES} files` : 'Attach files (PDF, CSV, PNG, JPG)'}
                         >
-                            <PaperClipOutlined />
+                            <PlusOutlined />
                         </button>
                     </div>
 
@@ -273,6 +273,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                                 disabled={!canSend}
                                 title="Send message"
                             >
+                                <span className="chat-send-text">Generate Free</span>
                                 <SendOutlined />
                             </button>
                         )}
@@ -284,7 +285,7 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
             {isDragOver && (
                 <div className="chat-drag-overlay">
                     <div className="chat-drag-text">
-                        <PaperClipOutlined style={{ fontSize: 24 }} />
+                        <PlusOutlined style={{ fontSize: 24 }} />
                         <span>Drop files here</span>
                     </div>
                 </div>

@@ -66,10 +66,10 @@ function ChatPage() {
         }
     }, [urlSessionId]);
 
-    // Auto-scroll to bottom
+    // Auto-scroll to bottom only when a new message is added
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isStreaming]);
+    }, [messages.length]);
 
     const fetchModels = async () => {
         try {

@@ -60,6 +60,9 @@ cp frontend/.env.example frontend/.env
 
 # Start all services
 docker compose up --build -d
+
+# Setup Keycloak
+node backend/scripts/setup-keycloak.js
 ```
 
 | Service | URL |
