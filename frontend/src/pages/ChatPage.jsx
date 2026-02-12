@@ -5,6 +5,7 @@ import ChatMessage from '../components/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import TypingIndicator from '../components/TypingIndicator';
 import PlanEditorView from '../components/PlanEditorView';
+import CommandSuggestions from '../components/CommandSuggestions';
 import authFetch from '../utils/authFetch';
 import './chat.css';
 
@@ -191,160 +192,160 @@ function ChatPage() {
         return data.files;
     };
 
-    const handleSend = useCallback(async (text, files = []) => {
-        // --- /project-plan command detection ---
-        if (text && text.trim().startsWith('/project-plan')) {
-            const planPrompt = text.trim().replace(/^\/project-plan\s*/, '').trim();
-            if (!planPrompt) {
-                setMessages(prev => [
-                    ...prev,
-                    { role: 'user', content: text },
-                    { role: 'assistant', content: '**Usage:** `/project-plan [description]`\n\nExample: `/project-plan My Fitness App`' },
-                ]);
-                return;
-            }
+    const handleGeneratePlan = useCallback(async () => {
+        // Build a prompt from the conversation context
+        const history = messages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => `${m.role}: ${m.content}`)
+            .join('\n\n');
 
-            // Enable Split View — streaming content renders directly in workspace
-            setIsSplitView(true);
-            setStreamingPlan('');
-            setPlanStatus('');
-            setActivePlan(null);
-            setIsStreaming(true);
-            isStreamingRef.current = true;
-
-            // Show user message + live status assistant message
+        if (!history.trim()) {
             setMessages(prev => [
                 ...prev,
-                { role: 'user', content: text },
-                { role: 'assistant', content: 'Generating project plan...' },
+                { role: 'assistant', content: 'Please have a conversation first before generating a project plan.' },
             ]);
-
-            try {
-                const res = await authFetch(`${API_BASE}/api/commands/generate-plan`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: planPrompt,
-                        sessionId: sessionId || undefined,
-                        options: { includeImages: true },
-                    }),
-                });
-
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error || 'Plan generation failed');
-                }
-
-                // SSE Reader (with line buffering for large payloads)
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let accumulatedPlan = '';
-                let planCompleted = false;
-                let pendingPlanData = null; // holds plan data until images are ready
-                let sseBuffer = '';
-
-                const showPlanCompleted = (planData) => {
-                    setActivePlan(planData);
-                    setPlanStatus('');
-                    setMessages(prev => {
-                        const updated = [...prev];
-                        updated[updated.length - 1] = {
-                            role: 'assistant',
-                            content: `**Project Plan Generated!**\n\n**${planData.title}**`,
-                            planAction: true,
-                            documentId: planData.documentId,
-                        };
-                        return updated;
-                    });
-                };
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    sseBuffer += decoder.decode(value, { stream: true });
-                    const lines = sseBuffer.split('\n');
-                    sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-                    for (const line of lines) {
-                        if (!line.startsWith('data: ')) continue;
-                        try {
-                            const data = JSON.parse(line.slice(6));
-
-                            if (data.sessionId) {
-                                // Backend created/confirmed session
-                                setSessionId(data.sessionId);
-                                navigate(`/chat/${data.sessionId}`, { replace: true });
-                            } else if (data.type === 'text') {
-                                accumulatedPlan += data.chunk;
-                                setStreamingPlan(accumulatedPlan);
-                            } else if (data.type === 'status') {
-                                setPlanStatus(data.message);
-                                // Only update chat message before plan is complete
-                                if (!planCompleted) {
-                                    setMessages(prev => {
-                                        const updated = [...prev];
-                                        updated[updated.length - 1] = {
-                                            role: 'assistant',
-                                            content: `${data.message}`,
-                                        };
-                                        return updated;
-                                    });
-                                }
-                            } else if (data.type === 'complete') {
-                                planCompleted = true;
-                                if (data.finalMarkdown) {
-                                    setStreamingPlan(data.finalMarkdown);
-                                }
-                                // Don't show planAction yet — wait for images or stream end
-                                pendingPlanData = { documentId: data.documentId, title: data.title };
-                            } else if (data.type === 'images-ready') {
-                                // Images generated — update workspace with real URLs
-                                if (data.finalMarkdown) {
-                                    setStreamingPlan(data.finalMarkdown);
-                                }
-                                // Now show the completed message with action buttons
-                                if (pendingPlanData) {
-                                    showPlanCompleted(pendingPlanData);
-                                    pendingPlanData = null;
-                                }
-                            } else if (data.type === 'error') {
-                                throw new Error(data.message);
-                            }
-                        } catch (e) {
-                            if (e.message && !e.message.includes('JSON')) throw e;
-                            // Skip JSON parse errors (incomplete lines)
-                        }
-                    }
-                }
-
-                // Stream ended — if images-ready never came (no images), show completion now
-                if (pendingPlanData) {
-                    showPlanCompleted(pendingPlanData);
-                }
-            } catch (err) {
-                console.error('Plan generation failed:', err);
-                setIsSplitView(false);
-                setMessages(prev => {
-                    const updated = [...prev];
-                    if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
-                        updated[updated.length - 1] = {
-                            role: 'assistant',
-                            content: `**Plan Generation Failed**\n\n${err.message}`,
-                        };
-                    } else {
-                        updated.push({ role: 'assistant', content: `**Plan Generation Failed**\n\n${err.message}` });
-                    }
-                    return updated;
-                });
-            } finally {
-                setIsStreaming(false);
-                isStreamingRef.current = false;
-            }
             return;
         }
 
+        // Use conversation as the prompt — same API, no backend changes needed
+        const prompt = `Based on our conversation below, generate a comprehensive project plan:\n\n${history}`;
+
+        // Enable Split View
+        setIsSplitView(true);
+        setStreamingPlan('');
+        setPlanStatus('');
+        setActivePlan(null);
+        setIsStreaming(true);
+        isStreamingRef.current = true;
+
+        // Show generating message
+        setMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: 'Generating project plan based on our conversation...' },
+        ]);
+
+        try {
+            const res = await authFetch(`${API_BASE}/api/commands/generate-plan`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt,
+                    sessionId: sessionId || undefined,
+                    options: { includeImages: true },
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Plan generation failed');
+            }
+
+            // SSE Reader
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let accPlan = '';
+            let planCompleted = false;
+            let pendingData = null;
+
+            const showCompleted = (data) => {
+                setActivePlan({ documentId: data.documentId, title: data.title || 'Project Plan' });
+                setPlanStatus('');
+                setMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                        role: 'assistant',
+                        content: `✅ **Project plan created**: [${data.title || 'Project Plan'}](/documents/${data.documentId})`,
+                        planAction: true,
+                        documentId: data.documentId,
+                    };
+                    return updated;
+                });
+            };
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const jsonStr = line.slice(6).trim();
+                    if (!jsonStr) continue;
+
+                    try {
+                        const data = JSON.parse(jsonStr);
+
+                        if (data.sessionId && !sessionId) {
+                            setSessionId(data.sessionId);
+                            navigate(`/chat/${data.sessionId}`, { replace: true });
+                        } else if (data.type === 'text') {
+                            accPlan += data.chunk;
+                            setStreamingPlan(accPlan);
+                        } else if (data.type === 'status') {
+                            setPlanStatus(data.message);
+                            if (!planCompleted) {
+                                setMessages(prev => {
+                                    const updated = [...prev];
+                                    updated[updated.length - 1] = {
+                                        role: 'assistant',
+                                        content: data.message,
+                                    };
+                                    return updated;
+                                });
+                            }
+                        } else if (data.type === 'images-ready') {
+                            if (data.finalMarkdown) {
+                                setStreamingPlan(data.finalMarkdown);
+                            }
+                            if (pendingData) {
+                                showCompleted(pendingData);
+                                pendingData = null;
+                            }
+                        } else if (data.type === 'complete') {
+                            planCompleted = true;
+                            if (data.finalMarkdown) {
+                                setStreamingPlan(data.finalMarkdown);
+                            }
+                            pendingData = { documentId: data.documentId, title: data.title };
+                        } else if (data.type === 'error') {
+                            throw new Error(data.message);
+                        }
+                    } catch (e) {
+                        if (e.message && !e.message.includes('JSON')) throw e;
+                    }
+                }
+            }
+
+            if (pendingData) {
+                showCompleted(pendingData);
+            }
+        } catch (err) {
+            console.error('Plan generation failed:', err);
+            setIsSplitView(false);
+            setMessages(prev => {
+                const updated = [...prev];
+                if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+                    updated[updated.length - 1] = {
+                        role: 'assistant',
+                        content: `**Plan Generation Failed**\n\n${err.message}`,
+                    };
+                } else {
+                    updated.push({ role: 'assistant', content: `**Plan Generation Failed**\n\n${err.message}` });
+                }
+                return updated;
+            });
+        } finally {
+            setIsStreaming(false);
+            isStreamingRef.current = false;
+        }
+    }, [messages, sessionId, navigate]);
+
+    const handleSend = useCallback(async (text, files = []) => {
         const userMessage = { role: 'user', content: text || '' };
 
         // Upload files first if any
@@ -380,7 +381,7 @@ function ChatPage() {
         // Start character-by-character display loop
         const startTyping = () => {
             if (typingInterval) return;
-            const charsPerSec = parseInt(import.meta.env.VITE_CHAT_TYPING_SPEED || '75', 10);
+            const charsPerSec = parseInt(import.meta.env.VITE_CHAT_TYPING_SPEED || '110', 10);
             const intervalMs = 1000 / charsPerSec;
 
             typingInterval = setInterval(() => {
@@ -597,19 +598,25 @@ function ChatPage() {
                                                             if (isSplitView && isActivePlan) {
                                                                 closePlan();
                                                             } else {
-                                                                openPlan(msg.documentId, msg.content);
+                                                                openPlan(msg.documentId, msg.title || 'Project Plan');
                                                             }
                                                         }}
                                                     >
-                                                        {isSplitView && isActivePlan ? 'Hide Plan' : 'View Plan'}
+                                                        {isSplitView && isActivePlan ? '✕ Close Plan' : '📋 Open Plan in Workspace'}
                                                     </button>
-                                                    <button
-                                                        className="plan-action-btn"
-                                                        onClick={() => navigate(`/documents/${msg.documentId}`)}
-                                                    >
-                                                        Open in Editor
-                                                    </button>
+                                                    {!isSplitView && (
+                                                        <button
+                                                            className="plan-action-btn"
+                                                            onClick={() => navigate(`/documents/${msg.documentId}`)}
+                                                        >
+                                                            ✏️ Edit in Full Screen
+                                                        </button>
+                                                    )}
                                                 </div>
+                                            )}
+                                            {/* Show CommandSuggestions after assistant messages (except plan action messages) */}
+                                            {msg.role === 'assistant' && !msg.planAction && !isStreaming && (
+                                                <CommandSuggestions onGeneratePlan={handleGeneratePlan} />
                                             )}
                                         </div>
                                     );

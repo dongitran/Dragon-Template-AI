@@ -6,7 +6,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 1: Project Setup & Docker Infrastructure ✅
+## Phase 1: Project Setup & Docker Infrastructure
 
 **Goal:** Bootstrap the entire project with Docker Compose and verify all services run correctly.
 
@@ -25,7 +25,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 2: Unit Testing & CI/CD Pipeline ✅
+## Phase 2: Unit Testing & CI/CD Pipeline
 
 **Goal:** Set up unit testing for both frontend and backend, and create a CI pipeline with GitHub Actions.
 
@@ -54,7 +54,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 3: Frontend Foundation & Docker Optimization ✅
+## Phase 3: Frontend Foundation & Docker Optimization
 
 **Goal:** Set up Ant Design UI framework, configure base theme/layout, and optimize Dockerfiles for both dev and production.
 
@@ -71,7 +71,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ---
 
-## Phase 4: Authentication with Keycloak ✅
+## Phase 4: Authentication with Keycloak
 
 **Goal:** Implement full authentication flow with a custom login page, Keycloak as identity provider, and user sync to MongoDB.
 
@@ -129,7 +129,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [x] Backend: Unit tests for chat service, key rotation, model config (25 + 15 = 40 tests)
 - [x] E2E: UI tests for chat interface (8 tests: welcome, send, typing, response, model selector, keyboard, streaming)
 - [x] E2E: API tests for chat endpoints (7 tests: auth, validation, SSE streaming, error handling)
-- [x] Coverage: `aiProvider.js` 100%, `chat.js` 100% lines — overall ≥ 95% ✅
+- [x] Coverage: `aiProvider.js` 100%, `chat.js` 100% lines — overall ≥ 95%
 
 **Deliverable:** Users can chat with AI, choose models, and see streamed responses in real-time.
 
@@ -376,42 +376,42 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [x] Create `Document` model (mongoose schema)
   - Fields: userId, sessionId, title, type, content (BlockNote JSON), metadata, assets[]
   - Support document types: 'project-plan', 'workflow', 'roadmap', 'sprint'
-- [x] Create `/api/commands/generate-plan` endpoint (basic structure done)
+- [x] Create `/api/commands/generate-plan` endpoint (SSE streaming)
   - Accept: sessionId, prompt, options (includeImages, imageStyle, sections)
-  - Generate plan structure + content via Gemini AI ✅
-  - Generate 3-5 images via Gemini Imagen API ⏳ (imageGenerationService ready, integration pending)
-  - Upload images to GCS ⏳ (pending integration)
+  - Generate plan structure + content via Gemini AI
+  - Generate 3-5 images via Gemini Imagen API
+  - Upload images to GCS
   - Return: documentId, title, content (BlockNote JSON), assets[]
 - [x] Create `/api/documents/:id` endpoints (GET, PUT, DELETE)
-- [ ] Create `/api/documents/:id/export` endpoint (Markdown only - PDF deferred)
-- [ ] Create `/api/documents/:id/assets/upload` endpoint (for user image uploads)
+- [x] Create `/api/documents/:id/export` endpoint (Markdown export implemented)
+- [x] Create `/api/documents/:id/assets/upload` endpoint (for user image uploads)
 
 ### 8.2 Backend: AI Services
 
-- [x] Create `planGenerationService.js` ✅
-  - `generateProjectPlan(prompt, options)` — orchestrate full generation ✅
-  - `generatePlanContent(prompt)` — call Gemini for markdown content ✅
-  - `extractImagePlaceholders(markdown)` — parse markdown for image needs ✅
-  - `generatePlanImages(placeholders)` — call Gemini Imagen API ⏳ (imageGenerationService ready)
-  - `uploadImagesToGCS(images)` — upload generated images ⏳ (pending integration)
-  - `markdownToBlockNote(markdown)` — convert to BlockNote JSON ✅
-- [x] Create `imageGenerationService.js` ✅ NEW
-  - `validateImagePrompt()`, `validateAspectRatio()` — validation functions ✅
-  - `generateImage(prompt, options)` — single image generation ✅
-  - `generateImageWithRetry(prompt, options, maxRetries)` — retry logic ✅
-  - `generateMultipleImages(prompts, options)` — batch parallel generation ✅
-  - Unit tests: 26/26 passing ✅
-  - Integration tests: 7/7 passing ✅
+- [x] Create `planGenerationService.js`
+  - `generateProjectPlan(prompt, options)` — orchestrate full generation
+  - `generatePlanContent(prompt)` — call Gemini for markdown content
+  - `extractImagePlaceholders(markdown)` — parse markdown for image needs
+  - `generatePlanImages(placeholders)` — call Gemini Imagen API)
+  - `uploadImagesToGCS(images)` — upload generated images)
+  - `markdownToBlockNote(markdown)` — convert to BlockNote JSON
+- [x] Create `imageGenerationService.js` NEW
+  - `validateImagePrompt()`, `validateAspectRatio()` — validation functions
+  - `generateImage(prompt, options)` — single image generation
+  - `generateImageWithRetry(prompt, options, maxRetries)` — retry logic
+  - `generateMultipleImages(prompts, options)` — batch parallel generation
+  - Unit tests: 26/26 passing
+  - Integration tests: 7/7 passing
 
 ### 8.3 Frontend: Document Editor
 
-- [ ] Install BlockNote: `@blocknote/core` and `@blocknote/react`
-- [ ] Create `BlockNoteEditor.jsx` component
+- [x] Install BlockNote: `@blocknote/core`, `@blocknote/react`, and `@blocknote/mantine`
+- [x] Create `BlockNoteEditor.jsx` component
   - Wrap BlockNote editor with image upload handler
   - Custom slash commands: "/ai-image" to generate images
   - Support drag-drop, paste, file upload for images
   - Auto-save every 5 seconds
-- [ ] Create `DocumentEditorPage.jsx` (route: `/documents/:id`)
+- [x] Create `DocumentEditorPage.jsx` (route: `/documents/:id`)
   - Full-screen editor with BlockNote instance
   - Top toolbar: Title input, Save, Export (PDF/Markdown), Share, Close
   - Loading states during AI generation
@@ -419,38 +419,105 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 
 ### 8.4 Frontend: Chat Integration
 
-- [ ] Modify `ChatPage.jsx` to detect `/project-plan [description]` command
-  - Call `POST /api/commands/generate-plan`
+- [x] Modify `ChatPage.jsx` to detect `/project-plan [description]` command
+  - Call `POST /api/commands/generate-plan` (SSE streaming)
   - Show progress: "Generating plan structure..." → "Creating images (1/4)..." → "Finalizing..."
   - On completion, open DocumentEditorPage with generated content
   - Add document link to chat history (clickable)
 
+### 8.6 Frontend: Command Suggestion UI
+
+**Goal:** Improve UX by showing command suggestion buttons after AI responses instead of requiring users to remember slash commands.
+
+**Design Reference:** Similar to Template.net - show "Please select to generate" with clickable command buttons after each AI response.
+
+**Implementation:**
+
+- [ ] Add `CommandSuggestions.jsx` component
+  - Display after assistant messages: "Please select to generate"
+  - Show command button: "📋 Generate Project Plan" with icon and chevron
+  - Clean card-based design with hover effects
+  - Responsive layout (horizontal scroll on mobile)
+  
+- [ ] Modify `ChatPage.jsx` to render command suggestions
+  - Show `CommandSuggestions` component after each assistant message
+  - On button click: collect full conversation history (all user + assistant messages)
+  - Call `POST /api/commands/generate-plan` with `prompt: conversationSummary`
+  - Show same progress UI as manual `/project-plan` command
+  - Remove manual `/project-plan` command detection (deprecated)
+  
+- [ ] Backend: Update `/api/commands/generate-plan` endpoint
+  - Accept conversation history in addition to single prompt
+  - If `conversationHistory` provided, summarize into coherent project description
+  - Use Gemini to extract: project goals, features, tech stack, timeline from conversation
+  - Generate plan based on extracted context
+
+**Conversation Summary Logic:**
+```javascript
+// Collect messages from current session
+const conversationHistory = messages
+  .filter(m => m.role === 'user' || m.role === 'assistant')
+  .map(m => `${m.role}: ${m.content}`)
+  .join('\n\n');
+
+// Send to backend
+const prompt = `Based on this conversation, generate a project plan:\n\n${conversationHistory}`;
+```
+
+**UI Mockup:**
+```
+┌────────────────────────────────────────────────────┐
+│ AI Response: "I can help you with that..."         │
+└────────────────────────────────────────────────────┘
+
+Please select to generate
+
+┌─────────────────────────────────┐
+│ 📋 Generate Project Plan      › │
+└─────────────────────────────────┘
+```
+
+**Benefits:**
+1. **No memorization required** - users see available commands visually
+2. **Context-aware** - uses entire conversation instead of single prompt
+3. **Better UX** - clear call-to-action after receiving AI assistance
+4. **Scalable** - easy to add more commands in the future (Generate Workflow, Generate Roadmap, etc.)
+
+**Testing:**
+- [ ] E2E: Verify command suggestions appear after AI responses
+- [ ] E2E: Click "Generate Project Plan" → uses conversation history
+- [ ] E2E: Generated plan reflects full conversation context
+- [ ] E2E: Progress indicator works correctly
+- [ ] Component: CommandSuggestions renders correctly
+- [ ] Component: Button click triggers plan generation
+
+
 ### 8.5 Testing
 
-- [x] Backend: Unit tests for `imageGenerationService.js` (26 tests) ✅ NEW
-  - Validation (prompt, aspect ratio) ✅
-  - Single image generation with retry logic ✅
-  - Batch parallel generation ✅
-  - Error handling (API failures, timeouts) ✅
-  - API key rotation ✅
-- [x] Backend: Integration tests for plan generation with images (7 tests) ✅ NEW
-  - Happy path - full flow ✅
-  - Partial failure - some images fail ✅
-  - Total failure - all images fail ✅
-  - GCS upload failure ✅
-  - Performance - multiple images in parallel ✅
-  - Images disabled ✅
-  - Service integration data flow ✅
+- [x] Backend: Unit tests for `imageGenerationService.js` (26 tests) NEW
+  - Validation (prompt, aspect ratio)
+  - Single image generation with retry logic
+  - Batch parallel generation
+  - Error handling (API failures, timeouts)
+  - API key rotation
+- [x] Backend: Integration tests for plan generation with images (7 tests) NEW
+  - Happy path - full flow
+  - Partial failure - some images fail
+  - Total failure - all images fail
+  - GCS upload failure
+  - Performance - multiple images in parallel
+  - Images disabled
+  - Service integration data flow
 - [ ] Backend: Unit tests for `planGenerationService.js` (pending)
-  - Plan generation with all/custom sections ⏳
-  - Image placeholder extraction ✅ (helper tested via integration)
-  - Markdown to BlockNote conversion ✅ (helper tested via integration)
+  - Plan generation with all/custom sections
+  - Image placeholder extraction (helper tested via integration)
+  - Markdown to BlockNote conversion (helper tested via integration)
 - [ ] Backend: Integration tests for documents API CRUD (pending)
-  - POST /api/commands/generate-plan with image generation ⏳
-  - GET, PUT /api/documents/:id ✅ (basic routes done)
-  - POST /api/documents/:id/export (Markdown only) ⏳
-  - POST /api/documents/:id/assets/upload ⏳
-  - Ownership verification ✅
+  - POST /api/commands/generate-plan with image generation
+  - GET, PUT /api/documents/:id (basic routes done)
+  - POST /api/documents/:id/export (Markdown only)
+  - POST /api/documents/:id/assets/upload
+  - Ownership verification
 - [ ] Frontend: Component tests for `BlockNoteEditor.jsx` (10 tests)
   - Render, content changes, image upload (file/drag-drop)
   - Slash commands, read-only mode, auto-save
@@ -463,7 +530,7 @@ Step-by-step plan to build the Dragon Template AI web chat application with AI-p
 - [ ] E2E: API tests for documents endpoints (8 tests)
 - [ ] Run all tests, fix failures, verify coverage ≥ 95%
 
-**Deliverable:** User types `/project-plan My Fitness App` → AI generates complete project plan with images → Opens in Notion-style BlockNote editor → User edits, replaces images → Exports to Markdown.
+**Deliverable:** User chats with AI about project idea → After AI response, clicks "📋 Generate Project Plan" button → AI analyzes full conversation → Generates complete project plan with images (30-60s) → Opens in BlockNote editor → User edits, replaces images → Exports to Markdown.
 
 **Note**: Image generation via Gemini Imagen can take 30-60 seconds for a full plan (text: ~5-10s, images: ~5-10s each × 3-5 images, GCS upload: ~2-5s). Show staged progress indicator to user.
 

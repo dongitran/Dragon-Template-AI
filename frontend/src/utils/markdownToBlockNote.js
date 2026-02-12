@@ -38,19 +38,32 @@ export function markdownToBlockNote(markdown) {
             continue;
         }
 
+
         // Image (![alt](url))
         const imageMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
         if (imageMatch) {
-            blocks.push({
-                type: 'image',
-                props: {
-                    url: imageMatch[2],
-                    caption: imageMatch[1] || '',
-                },
-            });
+            const alt = imageMatch[1] || '';
+            const url = imageMatch[2];
+
+            // If URL is a placeholder (not a real image yet), show a styled text placeholder
+            if (url.startsWith('IMAGE_PLACEHOLDER') || !url.startsWith('http')) {
+                blocks.push({
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: `🖼️ [Generating image: ${alt || 'Image'}...]`, styles: { italic: true } }],
+                });
+            } else {
+                blocks.push({
+                    type: 'image',
+                    props: {
+                        url,
+                        caption: alt,
+                    },
+                });
+            }
             i++;
             continue;
         }
+
 
         // Code block (```)
         if (trimmed.startsWith('```')) {
@@ -103,6 +116,58 @@ export function markdownToBlockNote(markdown) {
                 content: [{ type: 'text', text: '---', styles: {} }],
             });
             i++;
+            continue;
+        }
+
+        // Table (| col1 | col2 | ...)
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+            // Collect all table lines
+            const tableLines = [];
+            while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+                tableLines.push(lines[i].trim());
+                i++;
+            }
+
+            if (tableLines.length >= 2) {
+                // Parse table rows, skip separator row (| --- | --- |)
+                const rows = [];
+                for (const tl of tableLines) {
+                    // Check if this line is a separator (only contains |, -, :, and spaces)
+                    if (/^\|[\s\-:|]+\|$/.test(tl)) continue;
+
+                    const cells = tl
+                        .slice(1, -1) // remove outer pipes
+                        .split('|')
+                        .map(cell => parseInlineMarkdown(cell.trim()));
+
+                    rows.push({ cells });
+                }
+
+                if (rows.length > 0) {
+                    // Ensure all rows have the same number of columns
+                    const maxCols = Math.max(...rows.map(r => r.cells.length));
+                    const emptyCell = [{ type: 'text', text: '', styles: {} }];
+
+                    blocks.push({
+                        type: 'table',
+                        content: {
+                            type: 'tableContent',
+                            rows: rows.map(r => ({
+                                cells: [
+                                    ...r.cells,
+                                    ...Array(Math.max(0, maxCols - r.cells.length)).fill(emptyCell),
+                                ],
+                            })),
+                        },
+                    });
+                }
+            } else {
+                // Single pipe line, treat as paragraph
+                blocks.push({
+                    type: 'paragraph',
+                    content: parseInlineMarkdown(tableLines[0]),
+                });
+            }
             continue;
         }
 

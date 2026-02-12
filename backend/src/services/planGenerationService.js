@@ -307,14 +307,25 @@ function markdownToBlockNote(markdown) {
             });
         } else if (/^!\[([^\]]*)\]\(([^)]+)\)$/.test(trimmed)) {
             const imgMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-            blocks.push({
-                type: 'image',
-                props: {
-                    url: imgMatch[2],
-                    caption: imgMatch[1] || '',
-                    width: 512,
-                },
-            });
+            const alt = imgMatch[1] || '';
+            const url = imgMatch[2];
+
+            // If URL is a placeholder, show styled text instead of broken image
+            if (url.startsWith('IMAGE_PLACEHOLDER') || !url.startsWith('http')) {
+                blocks.push({
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: `🖼️ [Generating image: ${alt || 'Image'}...]`, styles: { italic: true } }],
+                });
+            } else {
+                blocks.push({
+                    type: 'image',
+                    props: {
+                        url,
+                        caption: alt,
+                        width: 512,
+                    },
+                });
+            }
         } else if (/^[-*_]{3,}$/.test(trimmed)) {
             continue;
         } else if (trimmed.startsWith('|')) {

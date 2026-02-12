@@ -28,7 +28,8 @@ An AI-powered web chat platform that goes beyond simple conversation — it gene
 **Infrastructure**
 - 🐳 Docker Compose (local dev)
 - ☸️ GKE (Google Kubernetes Engine) — production
-- 🔄 GitHub Actions CI/CD — auto deploy on push
+- 🏗️ Pulumi (IaC) — VPC + GKE cluster provisioning
+- 🔄 GitHub Actions CI/CD
 - 🔒 GCP Managed SSL + Load Balancer
 - 📦 Google Cloud Storage (file uploads)
 

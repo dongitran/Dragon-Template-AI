@@ -22,18 +22,27 @@ function PlanEditorView({ markdown, documentId, isGenerating, status, onClose })
     const [saveStatus, setSaveStatus] = useState(''); // '', 'Saving...', 'Saved', 'Save failed'
 
     // Convert markdown to BlockNote blocks whenever markdown changes
+    // Use a key to force BlockNoteEditor re-mount when loading existing plan (not during streaming)
+    const [editorKey, setEditorKey] = useState(0);
+
     useEffect(() => {
         if (markdown) {
             try {
                 const converted = markdownToBlockNote(markdown);
                 setBlocks(converted);
+                // Only force re-mount when loading an existing plan (not streaming)
+                if (!isGenerating) {
+                    setEditorKey(prev => prev + 1);
+                }
             } catch (err) {
                 console.error('[PlanEditorView] Markdown conversion error:', err);
-                // Fallback: show empty paragraph
                 setBlocks([{ type: 'paragraph', content: [{ type: 'text', text: markdown.slice(0, 100) + '...', styles: {} }] }]);
+                if (!isGenerating) {
+                    setEditorKey(prev => prev + 1);
+                }
             }
         }
-    }, [markdown]);
+    }, [markdown, isGenerating]);
 
     // Enable editing when generation completes
     useEffect(() => {
@@ -94,10 +103,10 @@ function PlanEditorView({ markdown, documentId, isGenerating, status, onClose })
                     {saveStatus && (
                         <div
                             className={`plan-editor-save-status ${saveStatus === 'Saved'
-                                    ? 'success'
-                                    : saveStatus === 'Saving...'
-                                        ? 'loading'
-                                        : 'error'
+                                ? 'success'
+                                : saveStatus === 'Saving...'
+                                    ? 'loading'
+                                    : 'error'
                                 }`}
                         >
                             {saveStatus}
@@ -121,12 +130,19 @@ function PlanEditorView({ markdown, documentId, isGenerating, status, onClose })
                 </div>
             </div>
             <div className="plan-editor-content">
-                <BlockNoteEditor
-                    initialContent={blocks}
-                    documentId={documentId}
-                    editable={editable}
-                    onSave={handleSave}
-                />
+                {blocks.length > 0 ? (
+                    <BlockNoteEditor
+                        key={editorKey}
+                        initialContent={blocks}
+                        documentId={documentId}
+                        editable={editable}
+                        onSave={handleSave}
+                    />
+                ) : (
+                    <div className="plan-editor-loading">
+                        <span>Loading plan content...</span>
+                    </div>
+                )}
             </div>
         </div>
     );

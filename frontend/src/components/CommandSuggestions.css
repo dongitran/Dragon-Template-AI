@@ -1,0 +1,59 @@
+.command-suggestions {
+    margin: 16px 0 8px;
+    padding: 0;
+}
+
+.command-suggestions-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.command-suggestions-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.command-suggestion-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.command-suggestion-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.command-suggestion-icon {
+    font-size: 16px;
+    color: rgba(108, 92, 231, 0.9);
+}
+
+.command-suggestion-text {
+    flex: 1;
+}
+
+.command-suggestion-chevron {
+    font-size: 12px;
+    opacity: 0.6;
+    transition: transform 0.2s ease;
+}
+
+.command-suggestion-btn:hover .command-suggestion-chevron {
+    transform: translateX(2px);
+    opacity: 1;
+}

@@ -48,8 +48,8 @@ router.post('/generate-plan', authMiddleware, async (req, res) => {
             sessionId = session._id.toString();
         }
 
-        // Save user message to session
-        session.messages.push({ role: 'user', content: `/project-plan ${prompt}` });
+        // Save user message to session (short label, not full prompt)
+        session.messages.push({ role: 'user', content: '📋 Generate Project Plan' });
         await session.save();
 
         // Set headers for SSE
