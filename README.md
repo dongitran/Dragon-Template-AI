@@ -36,10 +36,10 @@ An AI-powered web chat platform that goes beyond simple conversation — it gene
 ## 🎯 Features
 
 - 💬 **AI Chat** — Real-time streaming responses
-- 📊 **Generate Workflow** — Interactive flowchart diagrams
+- 📊 **Generate Workflow** — Interactive flowchart diagrams (Coming Soon)
 - 📝 **Generate Project Plan** — Rich markdown docs with charts & images
-- 🗓️ **Generate Roadmap** — Timeline-based project visualization
-- 🏃 **Generate Sprint** — Agile sprint planning boards
+- 🗓️ **Generate Roadmap** — Timeline-based project visualization (Coming Soon)
+- 🏃 **Generate Sprint** — Agile sprint planning boards (Coming Soon)
 - 🗂️ **Template Library** — Save & reuse all generated content
 
 ## 📖 Documentation
