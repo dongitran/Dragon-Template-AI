@@ -361,16 +361,16 @@
 .chat-input-container {
     max-width: 800px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    padding: 8px 0 12px;
     transition: border-color 0.2s ease;
 }
 
 .chat-input-container:focus-within {
-    border-color: #6C5CE7;
-    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.15);
+    border-bottom-color: #6C5CE7;
 }
 
 /* Textarea - top row, full width */
