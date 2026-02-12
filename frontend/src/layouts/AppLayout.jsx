@@ -75,7 +75,6 @@ function AppLayout({ children }) {
                 width={220}
             >
                 <div className="app-logo">
-                    <span className="app-logo-icon">🐉</span>
                     {!collapsed && <span className="app-logo-text">Dragon Template</span>}
                 </div>
 

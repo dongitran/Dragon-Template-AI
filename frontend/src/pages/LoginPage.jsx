@@ -32,7 +32,7 @@ export default function LoginPage() {
                     <div className="auth-header">
                         <div className="auth-logo">🐉</div>
                         <Title level={2} style={{ margin: 0, color: '#fff' }}>
-                            Dragon AI
+                            Dragon Template
                         </Title>
                         <Text type="secondary">Sign in to your account</Text>
                     </div>

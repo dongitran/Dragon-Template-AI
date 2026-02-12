@@ -19,9 +19,9 @@ describe('App', () => {
         expect(signInText).toBeInTheDocument();
     });
 
-    it('should show Dragon AI branding on login page', async () => {
+    it('should show Dragon Template branding on login page', async () => {
         render(<App />);
-        const dragonText = await screen.findByText('Dragon AI');
+        const dragonText = await screen.findByText('Dragon Template');
         expect(dragonText).toBeInTheDocument();
     });
 });

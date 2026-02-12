@@ -41,7 +41,7 @@ export default function RegisterPage() {
                         <Title level={2} style={{ margin: 0, color: '#fff' }}>
                             Create Account
                         </Title>
-                        <Text type="secondary">Join Dragon AI</Text>
+                        <Text type="secondary">Join Dragon Template</Text>
                     </div>
 
                     <Form
