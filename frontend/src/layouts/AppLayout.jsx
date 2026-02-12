@@ -6,6 +6,7 @@ import {
     ApartmentOutlined,
     ProjectOutlined,
     SettingOutlined,
+    EditOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     LogoutOutlined,
@@ -43,6 +44,10 @@ function AppLayout({ children }) {
         navigate('/login');
     };
 
+    const handleNewChat = () => {
+        navigate('/');
+    };
+
     const userMenuItems = [
         {
             key: 'profile',
@@ -78,9 +83,16 @@ function AppLayout({ children }) {
                 width={260}
                 collapsedWidth={0}
             >
-                {/* Header: Logo */}
+                {/* Header: Logo + New Chat */}
                 <div className="sidebar-header">
                     <span className="sidebar-logo-text">Dragon Template</span>
+                    <button
+                        className="sidebar-new-chat-btn"
+                        onClick={handleNewChat}
+                        title="New chat"
+                    >
+                        <EditOutlined />
+                    </button>
                 </div>
 
                 {/* Navigation */}
