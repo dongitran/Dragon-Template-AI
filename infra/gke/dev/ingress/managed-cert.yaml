@@ -1,0 +1,10 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: dragon-dev-cert
+  namespace: dragon-dev
+spec:
+  domains:
+    - dev.dragon-template.xyz
+    - dev-keycloak.dragon-template.xyz
+    - dev-api.dragon-template.xyz

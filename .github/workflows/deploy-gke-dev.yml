@@ -1,10 +1,10 @@
-name: Deploy to GKE (Production)
+name: Deploy to GKE (Dev)
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
-      - 'infra/gke/production/**'
+      - 'infra/gke/dev/**'
       - 'backend/**'
       - 'frontend/**'
 
@@ -28,20 +28,20 @@ jobs:
         with:
           filters: |
             mongodb:
-              - 'infra/gke/production/mongodb/**'
+              - 'infra/gke/dev/mongodb/**'
             ingress:
-              - 'infra/gke/production/ingress/**'
+              - 'infra/gke/dev/ingress/**'
             keycloak:
-              - 'infra/gke/production/keycloak/**'
+              - 'infra/gke/dev/keycloak/**'
             backend:
               - 'backend/**'
-              - 'infra/gke/production/backend/**'
+              - 'infra/gke/dev/backend/**'
             frontend:
               - 'frontend/**'
-              - 'infra/gke/production/frontend/**'
+              - 'infra/gke/dev/frontend/**'
 
   deploy-mongodb:
-    name: Deploy MongoDB
+    name: Deploy MongoDB (Dev)
     runs-on: ubuntu-latest
     needs: [detect-changes]
     if: >-
@@ -69,29 +69,29 @@ jobs:
           location: asia-southeast1-a
 
       - name: Create namespace
-        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create namespace dragon-dev --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create MongoDB secret
         run: |
-          kubectl create secret generic mongodb-secret -n dragon \
+          kubectl create secret generic mongodb-secret -n dragon-dev \
             --from-literal=MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_USERNAME }} \
             --from-literal=MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy MongoDB
-        run: kubectl apply -f infra/gke/production/mongodb/
+        run: kubectl apply -f infra/gke/dev/mongodb/
 
       - name: Wait for MongoDB ready
-        run: kubectl rollout status statefulset/mongodb -n dragon --timeout=120s
+        run: kubectl rollout status statefulset/mongodb -n dragon-dev --timeout=120s
 
       - name: Show status
         run: |
-          kubectl get pods -n dragon
-          kubectl get svc -n dragon
-          kubectl get pvc -n dragon
+          kubectl get pods -n dragon-dev
+          kubectl get svc -n dragon-dev
+          kubectl get pvc -n dragon-dev
 
   deploy-ingress:
-    name: Deploy Ingress
+    name: Deploy Ingress (Dev)
     runs-on: ubuntu-latest
     needs: [detect-changes]
     if: >-
@@ -119,18 +119,18 @@ jobs:
           location: asia-southeast1-a
 
       - name: Create namespace
-        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create namespace dragon-dev --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Ingress
-        run: kubectl apply -f infra/gke/production/ingress/
+        run: kubectl apply -f infra/gke/dev/ingress/
 
       - name: Show Ingress status
         run: |
-          kubectl get ingress -n dragon
-          kubectl get managedcertificates -n dragon
+          kubectl get ingress -n dragon-dev
+          kubectl get managedcertificates -n dragon-dev
 
   deploy-keycloak:
-    name: Deploy Keycloak
+    name: Deploy Keycloak (Dev)
     runs-on: ubuntu-latest
     needs: [detect-changes]
     if: >-
@@ -158,29 +158,29 @@ jobs:
           location: asia-southeast1-a
 
       - name: Create namespace
-        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create namespace dragon-dev --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Keycloak secret
         run: |
-          kubectl create secret generic keycloak-secret -n dragon \
+          kubectl create secret generic keycloak-secret -n dragon-dev \
             --from-literal=KEYCLOAK_ADMIN=${{ secrets.KEYCLOAK_ADMIN }} \
             --from-literal=KEYCLOAK_ADMIN_PASSWORD=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Keycloak
-        run: kubectl apply -f infra/gke/production/keycloak/
+        run: kubectl apply -f infra/gke/dev/keycloak/
 
       - name: Wait for Keycloak ready
-        run: kubectl rollout status deployment/keycloak -n dragon --timeout=600s
+        run: kubectl rollout status deployment/keycloak -n dragon-dev --timeout=600s
 
       - name: Show status
         run: |
-          kubectl get pods -n dragon
-          kubectl get svc -n dragon
-          kubectl get pvc -n dragon
+          kubectl get pods -n dragon-dev
+          kubectl get svc -n dragon-dev
+          kubectl get pvc -n dragon-dev
 
   deploy-backend:
-    name: Deploy Backend
+    name: Deploy Backend (Dev)
     runs-on: ubuntu-latest
     needs: [detect-changes]
     if: >-
@@ -206,12 +206,12 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:${{ github.sha }} \
-            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest \
+          docker build -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend-dev:${{ github.sha }} \
+            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend-dev:latest \
             --target production \
             ./backend
-          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:${{ github.sha }}
-          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:latest
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend-dev:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend-dev:latest
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
@@ -220,16 +220,17 @@ jobs:
           location: asia-southeast1-a
 
       - name: Create namespace
-        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create namespace dragon-dev --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Backend secret
         run: |
-          kubectl create secret generic backend-secret -n dragon \
-            --from-literal=MONGO_URI="${{ secrets.MONGO_URI }}" \
+          DEV_MONGO_URI="mongodb://${{ secrets.MONGO_USERNAME }}:${{ secrets.MONGO_PASSWORD }}@mongodb.dragon-dev.svc.cluster.local:27017/dragon_dev?authSource=admin"
+          kubectl create secret generic backend-secret -n dragon-dev \
+            --from-literal=MONGO_URI="${DEV_MONGO_URI}" \
             --from-literal=KEYCLOAK_CLIENT_SECRET=${{ secrets.KEYCLOAK_CLIENT_SECRET }} \
             --from-literal=GEMINI_API_KEYS="${{ secrets.GEMINI_API_KEYS }}" \
             --from-literal=AI_PROVIDERS_CONFIG='${{ secrets.AI_PROVIDERS_CONFIG }}' \
-            --from-literal=CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} \
+            --from-literal=CORS_ORIGIN=https://dev.dragon-template.xyz \
             --from-literal=GCS_CREDENTIALS='${{ secrets.GCS_CREDENTIALS }}' \
             --from-literal=GCS_BUCKET=${{ secrets.GCS_BUCKET }} \
             --from-literal=GEMINI_IMAGE_MODEL=${{ secrets.GEMINI_IMAGE_MODEL }} \
@@ -241,19 +242,19 @@ jobs:
 
       - name: Deploy Backend
         run: |
-          kubectl set image deployment/backend backend=asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend:${{ github.sha }} -n dragon 2>/dev/null || true
-          kubectl apply -f infra/gke/production/backend/
+          kubectl set image deployment/backend backend=asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/backend-dev:${{ github.sha }} -n dragon-dev 2>/dev/null || true
+          kubectl apply -f infra/gke/dev/backend/
 
       - name: Wait for Backend ready
-        run: kubectl rollout status deployment/backend -n dragon --timeout=120s
+        run: kubectl rollout status deployment/backend -n dragon-dev --timeout=120s
 
       - name: Show status
         run: |
-          kubectl get pods -n dragon
-          kubectl get svc -n dragon
+          kubectl get pods -n dragon-dev
+          kubectl get svc -n dragon-dev
 
   deploy-frontend:
-    name: Deploy Frontend
+    name: Deploy Frontend (Dev)
     runs-on: ubuntu-latest
     needs: [detect-changes]
     if: >-
@@ -280,14 +281,14 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker build \
-            --build-arg VITE_API_URL=https://api.dragon-template.xyz \
-            --build-arg VITE_KEYCLOAK_URL=https://keycloak.dragon-template.xyz \
-            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:${{ github.sha }} \
-            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest \
+            --build-arg VITE_API_URL=https://dev-api.dragon-template.xyz \
+            --build-arg VITE_KEYCLOAK_URL=https://dev-keycloak.dragon-template.xyz \
+            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend-dev:${{ github.sha }} \
+            -t asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend-dev:latest \
             --target production \
             ./frontend
-          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:${{ github.sha }}
-          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:latest
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend-dev:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend-dev:latest
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
@@ -296,17 +297,17 @@ jobs:
           location: asia-southeast1-a
 
       - name: Create namespace
-        run: kubectl create namespace dragon --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create namespace dragon-dev --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Frontend
         run: |
-          kubectl set image deployment/frontend frontend=asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend:${{ github.sha }} -n dragon 2>/dev/null || true
-          kubectl apply -f infra/gke/production/frontend/
+          kubectl set image deployment/frontend frontend=asia-southeast1-docker.pkg.dev/fair-backbone-479312-h7/dragon-images/frontend-dev:${{ github.sha }} -n dragon-dev 2>/dev/null || true
+          kubectl apply -f infra/gke/dev/frontend/
 
       - name: Wait for Frontend ready
-        run: kubectl rollout status deployment/frontend -n dragon --timeout=120s
+        run: kubectl rollout status deployment/frontend -n dragon-dev --timeout=120s
 
       - name: Show status
         run: |
-          kubectl get pods -n dragon
-          kubectl get svc -n dragon
+          kubectl get pods -n dragon-dev
+          kubectl get svc -n dragon-dev
