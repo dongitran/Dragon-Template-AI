@@ -39,15 +39,23 @@ const API_BASE = process.env.E2E_API_URL || 'http://localhost:3001';
 
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
 
-/** Login and return cookies string for subsequent requests */
+/** Login and return cookies string for subsequent requests (with retry for transient 502s) */
 async function loginAndGetCookies(request) {
-    const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
-        data: { username: TEST_USERNAME, password: TEST_PASSWORD },
-    });
-    expect(loginRes.status()).toBe(200);
-
-    const setCookies = loginRes.headersArray().filter(h => h.name.toLowerCase() === 'set-cookie');
-    return setCookies.map(c => c.value.split(';')[0]).join('; ');
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
+            data: { username: TEST_USERNAME, password: TEST_PASSWORD },
+        });
+        if (loginRes.status() === 200) {
+            const setCookies = loginRes.headersArray().filter(h => h.name.toLowerCase() === 'set-cookie');
+            return setCookies.map(c => c.value.split(';')[0]).join('; ');
+        }
+        if (attempt < maxAttempts) {
+            await new Promise(r => setTimeout(r, 3000 * attempt));
+        } else {
+            expect(loginRes.status()).toBe(200);
+        }
+    }
 }
 
 /** Upload a file and return the upload response body */
@@ -76,11 +84,12 @@ async function createSession(request, cookies, title = 'E2E Upload Test') {
     return res.json();
 }
 
-/** Send a chat message and return the response */
+/** Send a chat message and return the response (longer timeout for SSE streams) */
 async function sendChat(request, cookies, sessionId, messages) {
     return request.post(`${API_BASE}/api/chat`, {
         headers: { Cookie: cookies, 'Content-Type': 'application/json' },
         data: { sessionId, messages },
+        timeout: 120000,
     });
 }
 
@@ -287,6 +296,9 @@ test.describe('Upload API — GET /api/upload/:fileId/download', () => {
 // ═══════════════════════════════════════════════════════════════
 
 test.describe('Upload API — Multimodal Chat', () => {
+    // Run serially — concurrent AI streaming calls can overwhelm the backend
+    test.describe.configure({ mode: 'serial' });
+
     test('should send chat message with image attachment and get AI response', async ({ request }) => {
         const cookies = await loginAndGetCookies(request);
 

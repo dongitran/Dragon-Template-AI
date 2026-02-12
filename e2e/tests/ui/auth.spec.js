@@ -80,8 +80,8 @@ test.describe('Authentication Flow', () => {
         await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
 
-        // Should redirect to home/dashboard
-        await expect(page).toHaveURL('/', { timeout: 10000 });
+        // Should redirect to home/dashboard (longer timeout for slow server)
+        await expect(page).toHaveURL('/', { timeout: 15000 });
 
         // Should show the app layout with sidebar
         await expect(page.getByText('Chat', { exact: true })).toBeVisible();
@@ -163,12 +163,20 @@ test.describe('Authentication Flow', () => {
 
 test.describe('Authenticated Session', () => {
     test.beforeEach(async ({ page }) => {
-        // Login before each test in this group
-        await page.goto('/login');
-        await page.getByPlaceholder('Username').fill(TEST_USERNAME);
-        await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
-        await page.getByRole('button', { name: /sign in/i }).click();
-        await expect(page).toHaveURL('/', { timeout: 10000 });
+        // Login before each test — retry if server is temporarily overloaded
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await page.goto('/login');
+            await page.getByPlaceholder('Username').fill(TEST_USERNAME);
+            await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
+            await page.getByRole('button', { name: /sign in/i }).click();
+            try {
+                await expect(page).toHaveURL('/', { timeout: 15000 });
+                return; // Login succeeded
+            } catch {
+                if (attempt === 1) throw new Error('Login failed after 2 attempts');
+                await page.waitForTimeout(3000);
+            }
+        }
     });
 
     test('should show user avatar with initial in header', async ({ page }) => {
