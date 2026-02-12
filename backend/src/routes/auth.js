@@ -151,6 +151,49 @@ router.get('/me', authMiddleware, async (req, res) => {
 });
 
 /**
+ * PATCH /api/auth/profile
+ * Update current user's displayName and/or preferences in MongoDB.
+ */
+router.patch('/profile', authMiddleware, async (req, res) => {
+    try {
+        const { displayName, preferences } = req.body;
+        const update = {};
+
+        if (typeof displayName === 'string') {
+            update.displayName = displayName.trim().slice(0, 100);
+        }
+
+        if (preferences && typeof preferences === 'object') {
+            const allowed = ['theme', 'language'];
+            for (const key of allowed) {
+                if (typeof preferences[key] === 'string') {
+                    update[`preferences.${key}`] = preferences[key];
+                }
+            }
+        }
+
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({ error: 'Nothing to update' });
+        }
+
+        const user = await User.findOneAndUpdate(
+            { keycloakId: req.user.sub },
+            { $set: update },
+            { new: true },
+        );
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json(serializeUser(user));
+    } catch (err) {
+        console.error('Update profile error:', err.message);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
+/**
  * POST /api/auth/logout
  * Clear auth cookies.
  */

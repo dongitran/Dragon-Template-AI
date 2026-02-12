@@ -13,8 +13,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(20, 20, 20, 0.8);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     z-index: 10;
@@ -23,7 +23,7 @@
 .chat-header-title {
     font-size: 14px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--text-secondary);
 }
 
 .model-selector {
@@ -31,14 +31,14 @@
 }
 
 .model-selector .ant-select-selector {
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: var(--bg-hover) !important;
+    border: 1px solid var(--border-color-strong) !important;
     border-radius: 8px !important;
-    color: #fff !important;
+    color: var(--text-primary) !important;
 }
 
 .model-selector .ant-select-selection-item {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: var(--text-primary) !important;
 }
 
 /* Main area (Center/Left — workspace preview) */
@@ -65,10 +65,8 @@
     flex-basis: 400px;
     display: flex;
     flex-direction: column;
-    border-left: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(15, 15, 15, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    border-left: 1px solid var(--border-color);
+    background: var(--bg-secondary);
     transition: flex-grow 0.3s ease, border-left 0.3s ease, background 0.3s ease;
 }
 
@@ -93,7 +91,7 @@
         flex: 0 0 auto;
         height: 50%;
         border-left: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid var(--border-color-strong);
     }
 }
 
@@ -123,18 +121,18 @@
 .plan-action-btn {
     padding: 6px 14px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--border-color-strong);
+    background: var(--bg-hover);
+    color: var(--text-secondary);
     font-size: 13px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .plan-action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-active);
+    color: var(--text-primary);
+    border-color: var(--border-color-strong);
 }
 
 .plan-action-btn.primary {
@@ -167,14 +165,14 @@
 }
 
 .chat-empty h3 {
-    color: #fff;
+    color: var(--text-primary);
     font-size: 22px;
     font-weight: 600;
     margin: 0;
 }
 
 .chat-empty p {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-tertiary);
     font-size: 14px;
     margin: 0;
 }
@@ -208,8 +206,8 @@
 }
 
 .chat-message.user .chat-message-avatar {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--bg-active);
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 600;
 }
@@ -231,12 +229,10 @@
 }
 
 .chat-message.assistant .chat-message-content {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.9);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
     border-bottom-left-radius: 4px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
 }
 
 /* Markdown in AI messages */
@@ -259,11 +255,11 @@
 }
 
 .chat-message-content strong {
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .chat-message-content code {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-active);
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 13px;
@@ -271,8 +267,8 @@
 }
 
 .chat-message-content pre {
-    background: rgba(0, 0, 0, 0.4) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-code) !important;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 12px !important;
     margin: 8px 0;
@@ -288,7 +284,7 @@
     border-left: 3px solid #6C5CE7;
     margin: 8px 0;
     padding: 4px 12px;
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--text-secondary);
 }
 
 .chat-message-content table {
@@ -299,14 +295,14 @@
 
 .chat-message-content th,
 .chat-message-content td {
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color-strong);
     padding: 6px 10px;
     text-align: left;
     font-size: 13px;
 }
 
 .chat-message-content th {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--bg-hover);
     font-weight: 600;
 }
 
@@ -323,8 +319,8 @@
     gap: 4px;
     align-items: center;
     padding: 14px 18px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
     border-radius: 16px;
     border-bottom-left-radius: 4px;
 }
@@ -333,7 +329,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.4);
+    background: var(--text-tertiary);
     animation: typingBounce 1.4s ease-in-out infinite;
 }
 
@@ -348,7 +344,7 @@
 /* Input area */
 .chat-right-panel-input {
     padding: 12px 20px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--border-color);
 }
 
 .chat-input-area {
@@ -360,8 +356,8 @@
 .chat-input-container {
     max-width: 800px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color-strong);
     border-radius: 16px;
     padding: 12px 12px 6px;
     transition: border-color 0.2s ease;
@@ -378,7 +374,7 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #fff;
+    color: var(--text-primary);
     font-size: 14px;
     font-family: 'Inter', sans-serif;
     resize: none;
@@ -390,7 +386,7 @@
 }
 
 .chat-input-textarea::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--text-tertiary);
 }
 
 /* Bottom controls row */
@@ -417,7 +413,7 @@
     height: 32px;
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-tertiary);
     font-size: 18px;
     cursor: pointer;
     padding: 0;
@@ -426,8 +422,8 @@
 }
 
 .chat-upload-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.85);
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 .chat-upload-btn:disabled {
@@ -446,7 +442,7 @@
     background: transparent !important;
     background-color: transparent !important;
     border: none !important;
-    color: #fff !important;
+    color: var(--text-primary) !important;
     min-width: 110px !important;
     max-width: 150px !important;
     padding: 0 !important;
@@ -463,14 +459,14 @@
 }
 
 .chat-input-model-selector .ant-select-selection-item {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: var(--text-secondary) !important;
     font-size: 13px !important;
     background: transparent !important;
     background-color: transparent !important;
 }
 
 .chat-input-model-selector .ant-select-arrow {
-    color: rgba(255, 255, 255, 0.5) !important;
+    color: var(--text-tertiary) !important;
 }
 
 /* Send/Stop button */
@@ -538,8 +534,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color-strong);
     border-radius: 10px;
     padding: 6px 8px;
     max-width: 200px;
@@ -576,7 +572,7 @@
 
 .chat-file-name {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -584,13 +580,13 @@
 
 .chat-file-size {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-tertiary);
 }
 
 .chat-file-remove {
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-tertiary);
     cursor: pointer;
     font-size: 10px;
     padding: 2px;
@@ -655,7 +651,7 @@
     border-radius: 10px;
     cursor: pointer;
     transition: transform 0.2s ease, opacity 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
 }
 
 .chat-attachment-image:hover {
@@ -667,8 +663,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color-strong);
     border-radius: 10px;
     padding: 10px 14px;
     cursor: pointer;
@@ -679,7 +675,7 @@
 }
 
 .chat-attachment-card:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-active);
     border-color: rgba(108, 92, 231, 0.3);
 }
 
@@ -698,7 +694,7 @@
 
 .chat-attachment-card-name {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -706,12 +702,12 @@
 
 .chat-attachment-card-size {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-tertiary);
 }
 
 .chat-attachment-download {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--text-tertiary);
     transition: color 0.15s ease;
 }
 

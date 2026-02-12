@@ -63,8 +63,8 @@
 /* Override Ant Design input styles for auth pages */
 .auth-card .ant-input-affix-wrapper,
 .auth-card .ant-input {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: var(--bg-hover) !important;
+    border-color: var(--border-color-strong) !important;
 }
 
 .auth-card .ant-input-affix-wrapper:hover,

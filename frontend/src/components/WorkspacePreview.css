@@ -2,24 +2,24 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: rgba(20, 20, 20, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 16px;
     margin: 20px;
     overflow: hidden;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     animation: slideInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .workspace-preview-header {
     padding: 16px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--bg-hover);
 }
 
 .workspace-preview-title {
@@ -36,7 +36,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
 }
 
 .workspace-preview-header-right {
@@ -50,8 +50,8 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-tertiary);
+    background: var(--bg-hover);
     padding: 4px 12px;
     border-radius: 100px;
 }
@@ -60,9 +60,9 @@
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--border-color-strong);
+    background: var(--bg-hover);
+    color: var(--text-tertiary);
     font-size: 14px;
     cursor: pointer;
     display: flex;
@@ -72,9 +72,9 @@
 }
 
 .workspace-preview-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.9);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-active);
+    color: var(--text-primary);
+    border-color: var(--border-color-strong);
 }
 
 .status-dot {
@@ -95,33 +95,33 @@
 
 /* Markdown Styling */
 .markdown-body {
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-primary);
     line-height: 1.7;
     font-size: 15px;
 }
 
 .markdown-body h1 {
     font-size: 2.2em;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border-color-strong);
     padding-bottom: 0.3em;
     margin-bottom: 1em;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .markdown-body h2 {
     font-size: 1.6em;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.3em;
     margin-top: 1.5em;
     margin-bottom: 0.8em;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .markdown-body h3 {
     font-size: 1.3em;
     margin-top: 1.5em;
     margin-bottom: 0.6em;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .markdown-body p {
@@ -147,7 +147,7 @@
 }
 
 .markdown-body code {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-active);
     padding: 2px 6px;
     border-radius: 4px;
     font-family: inherit;
@@ -162,13 +162,13 @@
 
 .markdown-body th,
 .markdown-body td {
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color-strong);
     padding: 12px 16px;
     text-align: left;
 }
 
 .markdown-body th {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--bg-hover);
     font-weight: 600;
 }
 
@@ -177,8 +177,8 @@
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    background: var(--bg-hover);
+    border: 1px dashed var(--border-color-strong);
     border-radius: 12px;
     margin: 1.5em 0;
     overflow: hidden;
@@ -195,7 +195,7 @@
     height: 100%;
     background: linear-gradient(90deg,
             transparent 0%,
-            rgba(255, 255, 255, 0.04) 50%,
+            var(--bg-hover) 50%,
             transparent 100%);
     animation: shimmer 2s infinite linear;
 }
@@ -203,7 +203,7 @@
 .image-placeholder-text {
     position: relative;
     z-index: 1;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-tertiary);
     font-size: 14px;
     display: flex;
     align-items: center;

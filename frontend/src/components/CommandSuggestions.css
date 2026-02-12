@@ -4,7 +4,7 @@
 }
 
 .command-suggestions-label {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-tertiary);
     font-size: 13px;
     margin-bottom: 12px;
     font-weight: 500;
@@ -21,10 +21,10 @@
     align-items: center;
     gap: 10px;
     padding: 10px 16px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color-strong);
     border-radius: 8px;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -32,9 +32,9 @@
 }
 
 .command-suggestion-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #fff;
+    background: var(--bg-active);
+    border-color: var(--border-color-strong);
+    color: var(--text-primary);
     transform: translateY(-1px);
 }
 

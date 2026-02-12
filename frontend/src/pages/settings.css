@@ -1,0 +1,181 @@
+.settings-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 8px 0;
+}
+
+.settings-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 28px;
+}
+
+.settings-section {
+    margin-bottom: 32px;
+}
+
+.settings-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.settings-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+/* Profile header */
+.settings-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-profile-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settings-profile-email {
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+/* Fields */
+.settings-field {
+    margin-bottom: 16px;
+}
+
+.settings-field:last-child {
+    margin-bottom: 0;
+}
+
+.settings-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.settings-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.settings-input-row .ant-input-affix-wrapper {
+    flex: 1;
+}
+
+/* Theme preview cards */
+.settings-theme-options {
+    display: flex;
+    gap: 12px;
+}
+
+.settings-theme-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+    background: transparent;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.settings-theme-btn:hover {
+    border-color: var(--border-color-strong);
+}
+
+.settings-theme-btn.active {
+    border-color: #6C5CE7;
+    color: var(--text-primary);
+}
+
+.settings-theme-preview {
+    width: 120px;
+    height: 72px;
+    border-radius: 8px;
+    display: flex;
+    overflow: hidden;
+}
+
+.settings-theme-preview.dark {
+    background: #0a0a0a;
+}
+
+.settings-theme-preview.dark .stp-sidebar {
+    width: 32px;
+    background: #1a1a1a;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-theme-preview.dark .stp-content {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.settings-theme-preview.dark .stp-line {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-theme-preview.dark .stp-line.short {
+    width: 60%;
+}
+
+.settings-theme-preview.light {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.settings-theme-preview.light .stp-sidebar {
+    width: 32px;
+    background: #f7f7f8;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.settings-theme-preview.light .stp-content {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.settings-theme-preview.light .stp-line {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.settings-theme-preview.light .stp-line.short {
+    width: 60%;
+}
