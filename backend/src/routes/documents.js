@@ -373,4 +373,50 @@ router.post('/:id/assets/upload', authMiddleware, (req, res) => {
     });
 });
 
+// PATCH /api/documents/:id — partial update document content (for autosave)
+router.patch('/:id', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.sub;
+        const { content, contentType } = req.body;
+
+        if (!content) {
+            return res.status(400).json({ error: 'content is required' });
+        }
+
+        // Find document and verify ownership
+        const document = await Document.findOne({ _id: id, userId });
+
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        // Update content and contentType
+        document.content = content;
+        if (contentType) {
+            document.contentType = contentType;
+        }
+        document.updatedAt = new Date();
+
+        await document.save();
+
+        res.json({
+            success: true,
+            document: {
+                _id: document._id,
+                title: document.title,
+                content: document.content,
+                contentType: document.contentType,
+                updatedAt: document.updatedAt,
+            },
+        });
+    } catch (error) {
+        console.error('[Documents] PATCH error:', error);
+        if (error.name === 'CastError') {
+            return res.status(400).json({ error: 'Invalid document ID' });
+        }
+        res.status(500).json({ error: 'Failed to update document' });
+    }
+});
+
 module.exports = router;

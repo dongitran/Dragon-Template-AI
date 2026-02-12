@@ -1,0 +1,135 @@
+.plan-editor-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.plan-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.plan-editor-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.plan-editor-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.plan-editor-title h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.plan-editor-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.plan-editor-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+}
+
+.plan-editor-save-status {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.plan-editor-save-status.loading {
+    background: rgba(124, 179, 66, 0.15);
+    color: #7cb342;
+}
+
+.plan-editor-save-status.success {
+    background: rgba(46, 213, 115, 0.15);
+    color: #2ed573;
+}
+
+.plan-editor-save-status.error {
+    background: rgba(255, 71, 87, 0.15);
+    color: #ff4757;
+}
+
+.plan-editor-readonly-badge {
+    padding: 6px 12px;
+    background: rgba(255, 184, 0, 0.15);
+    color: #ffb800;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.plan-editor-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.plan-editor-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.plan-editor-content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+}
+
+/* Ensure BlockNoteEditor fills the space */
+.plan-editor-content .blocknote-editor-wrapper {
+    height: 100%;
+}

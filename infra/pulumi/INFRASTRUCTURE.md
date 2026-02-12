@@ -1870,7 +1870,62 @@ gh secret set GCS_CREDENTIALS --repo dongitran/Dragon-Template-AI --body '<xem t
 gh secret list --repo dongitran/Dragon-Template-AI | grep GCS
 ```
 
-**27g. Verify upload API hoat dong:**
+**27g. Them IMAGE generation GitHub Secrets (6 secrets):**
+
+**Muc dich**: Backend deployment.yaml reference 6 env vars cho image generation (`GCS_BUCKET`, `GEMINI_IMAGE_MODEL`, `IMAGE_DEFAULT_ASPECT_RATIO`, `IMAGE_DEFAULT_STYLE`, `IMAGE_MAX_RETRIES`, `IMAGE_TIMEOUT_MS`). Can tao GitHub Secrets de CI/CD co the inject vao backend-secret.
+
+```bash
+# Set GCS bucket name
+gh secret set GCS_BUCKET --body "dragon-template-storage"
+# ==> ✓ Set Actions secret GCS_BUCKET for dongitran/Dragon-Template-AI
+
+# Set Gemini image generation model
+gh secret set GEMINI_IMAGE_MODEL --body "gemini-2.5-flash-image"
+# ==> ✓ Set Actions secret GEMINI_IMAGE_MODEL
+
+# Set image default aspect ratio
+gh secret set IMAGE_DEFAULT_ASPECT_RATIO --body "16:9"
+# ==> ✓ Set Actions secret IMAGE_DEFAULT_ASPECT_RATIO
+
+# Set image default style
+gh secret set IMAGE_DEFAULT_STYLE --body "professional"
+# ==> ✓ Set Actions secret IMAGE_DEFAULT_STYLE
+
+# Set image generation max retries
+gh secret set IMAGE_MAX_RETRIES --body "3"
+# ==> ✓ Set Actions secret IMAGE_MAX_RETRIES
+
+# Set image generation timeout (milliseconds)
+gh secret set IMAGE_TIMEOUT_MS --body "60000"
+# ==> ✓ Set Actions secret IMAGE_TIMEOUT_MS
+```
+
+**Verify tat ca secrets:**
+```bash
+gh secret list
+# AI_PROVIDERS_CONFIG         Updated 2026-02-11
+# CORS_ORIGIN                 Updated 2026-02-11
+# GCS_BUCKET                  Updated 2026-02-11  ✓
+# GCS_CREDENTIALS             Updated 2026-02-11  ✓
+# GEMINI_API_KEYS             Updated 2026-02-11
+# GEMINI_IMAGE_MODEL          Updated 2026-02-11  ✓
+# IMAGE_DEFAULT_ASPECT_RATIO  Updated 2026-02-11  ✓
+# IMAGE_DEFAULT_STYLE         Updated 2026-02-11  ✓
+# IMAGE_MAX_RETRIES           Updated 2026-02-11  ✓
+# IMAGE_TIMEOUT_MS            Updated 2026-02-11  ✓
+# KEYCLOAK_ADMIN              Updated 2026-02-10
+# KEYCLOAK_ADMIN_PASSWORD     Updated 2026-02-10
+# KEYCLOAK_CLIENT_SECRET      Updated 2026-02-11
+# MONGO_PASSWORD              Updated 2026-02-10
+# MONGO_URI                   Updated 2026-02-11
+# MONGO_USERNAME              Updated 2026-02-10
+```
+
+**Luu y**: Cac secrets nay phai khop voi deployment.yaml va .github/workflows/deploy-gke.yml:
+- `infra/gke/backend/deployment.yaml` reference 6 IMAGE_* env vars
+- `.github/workflows/deploy-gke.yml` inject cac secrets nay vao backend-secret khi deploy
+
+**27h. Verify upload API hoat dong:**
 ```bash
 # Check logs - khong con loi GCS
 kubectl logs deployment/backend -n dragon --tail=20
@@ -1881,16 +1936,205 @@ curl -X POST https://api.dragon-template.xyz/api/upload \
   -F "file=@test-file.pdf"
 ```
 
-**27h. Luu y quan trong:**
+**27i. Luu y quan trong:**
 - **Private key `\n` trong JSON**: Khi truyen JSON qua bash/shell, `\n` trong `private_key` bi convert thanh newline that. Phai dung heredoc voi quotes (`<< 'EOF'`) hoac ghi ra file truoc de giu nguyen literal `\n`.
 - **Loi "Bad control character"**: La do `JSON.parse()` gap actual newline trong string (khong hop le trong JSON). Fix: dam bao `\n` la escape sequence, khong phai newline that.
 
-**27i. Ket qua:**
+**27j. Ket qua:**
 - Backend pod co env var `GCS_CREDENTIALS` ✓
 - Upload API (`POST /api/upload`) tra ve 200 ✓
 - K8s secret `backend-secret` co key `GCS_CREDENTIALS` ✓
 - GitHub Secret `GCS_CREDENTIALS` da set ✓
 - CI/CD (`deploy-gke.yml`) se tu dong apply secret khi deploy ✓
+
+# Step 28: Configure GCP Load Balancer Timeout for SSE Streaming
+
+**Muc dich**: Fix loi "network error" khi generate project plan voi images. Backend hoan thanh thanh cong nhung frontend timeout truoc khi nhan duoc completion event.
+
+## 28a. Chan doan van de
+
+**Trieu chung:**
+- User generate project plan → frontend show "Plan Generation Failed - network error"
+- Nhung khi F5 refresh, plan da hoan thanh voi day du images
+- Backend logs cho thay success: `[ImageGen] ✓ Completed 5/5 images in 14813ms`
+
+**Chan doan ban dau (response buffering):**
+```bash
+# Check backend logs
+kubectl logs -n dragon -l app=backend --tail=50 | grep -E "planGeneration|image"
+# [ImageGen] ✓ Generated image in 9170ms (1024KB)
+# [ImageGen] ✓ Completed 5/5 images in 14813ms (0 failures)
+# [planGeneration] Document updated with 5 images
+# ==> Khong thay log ve sending completion event
+```
+
+Issue: SSE events bi buffer, khong duoc push ngay lap tuc. Fix: Them `res.flush()` vao sendSSE helper.
+
+**Chan doan root cause (GCP Load Balancer timeout):**
+```bash
+# Web research: GCP Load Balancer default timeout
+# ==> Backend Service Timeout: 30 seconds (default)
+# ==> Stream Idle Timeout: 300 seconds (non-configurable)
+
+# Image generation time: ~15s
+# Total SSE stream (plan + images): 30-45s
+# ==> VUOT QUA 30s timeout!
+```
+
+**Root cause chinh xac**: GCP Load Balancer co **default 30-second timeout** cho backend services. SSE connection bi terminate truoc khi backend gui completion event.
+
+## 28b. Tao BackendConfig resource
+
+Create `infra/gke/backend/backendconfig.yaml`:
+```yaml
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: backend-config
+  namespace: dragon
+spec:
+  timeoutSec: 600  # 10 minutes for SSE streaming (plan generation + images)
+  connectionDraining:
+    drainingTimeoutSec: 60
+```
+
+**Ly do chon 600s (10 phut):**
+- Image generation: ~15s
+- Future-proof cho cac plan lon hon hoac nhieu images hon
+- Van nho hon stream idle timeout (300s la non-configurable)
+
+## 28c. Cap nhat Backend Service annotation
+
+Edit `infra/gke/backend/service.yaml`:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: dragon
+  annotations:
+    cloud.google.com/backend-config: '{"default": "backend-config"}'  # Them moi
+spec:
+  type: NodePort
+  selector:
+    app: backend
+  ports:
+    - port: 3001
+      targetPort: 3001
+      nodePort: 30010
+```
+
+## 28d. Them res.flush() vao SSE helper
+
+Edit `backend/src/routes/documents.js`:
+```javascript
+// Helper to send SSE data
+const sendSSE = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+    if (res.flush) res.flush(); // Force push to client immediately
+};
+```
+
+**Quan trong**: `res.flush()` force Node.js push data qua network ngay lap tuc, tranh buffering.
+
+## 28e. Apply BackendConfig va Service
+
+```bash
+# Apply BackendConfig resource
+kubectl apply -f infra/gke/backend/backendconfig.yaml
+# ==> backendconfig.cloud.google.com/backend-config created
+
+# Apply updated Service annotation
+kubectl apply -f infra/gke/backend/service.yaml
+# ==> service/backend configured
+```
+
+## 28f. Verify Kubernetes layer
+
+```bash
+# Check BackendConfig resource
+kubectl get backendconfig backend-config -n dragon -o yaml
+# spec:
+#   connectionDraining:
+#     drainingTimeoutSec: 60
+#   timeoutSec: 600
+
+# Check Service annotation
+kubectl get service backend -n dragon -o yaml | grep -A 5 "annotations:"
+# annotations:
+#   cloud.google.com/backend-config: '{"default": "backend-config"}'
+#   cloud.google.com/neg: '{"ingress":true}'
+
+# Check Service description
+kubectl describe service backend -n dragon | grep -A 10 "Annotations:"
+# Annotations: cloud.google.com/backend-config: {"default": "backend-config"}
+#              cloud.google.com/neg: {"ingress":true}
+```
+
+##28g. Verify GCP Load Balancer layer
+
+**Luu y**: GCP can 2-5 phut de propagate BackendConfig changes len Load Balancer.
+
+```bash
+# List backend services
+gcloud compute backend-services list --filter="name~backend" --format="table(name,timeoutSec,protocol)"
+# NAME                                        TIMEOUT_SEC  PROTOCOL
+# k8s1-b62b0812-dragon-backend-3001-b3d4684d  600          HTTP
+
+# Describe backend service chi tiet
+gcloud compute backend-services describe $(gcloud compute backend-services list --filter="name~backend" --format="value(name)" --limit=1) --global --format="yaml(timeoutSec,connectionDraining)"
+# connectionDraining:
+#   drainingTimeoutSec: 60
+# timeoutSec: 600
+```
+
+**Ket qua**: Timeout da tang tu 30s → **600s (10 phut)** ✓
+
+## 28h. Troubleshooting
+
+**Van de 1: BackendConfig khong apply len Load Balancer**
+```bash
+# Check NEG (Network Endpoint Group) status
+kubectl describe service backend -n dragon | grep "neg-status"
+# cloud.google.com/neg-status: {"network_endpoint_groups":{"3001":"k8s1-..."},"zones":["asia-southeast1-a"]}
+
+# Neu NEG chua sync:
+kubectl delete pods -n dragon -l app=backend
+# Hoac doi 5-10 phut de GKE controller sync
+```
+
+**Van de 2: Timeout van la 30s sau khi apply**
+```bash
+# Verify Service annotation syntax dung:
+kubectl get svc backend -n dragon -o jsonpath='{.metadata.annotations.cloud\.google\.com/backend-config}'
+# {"default": "backend-config"}
+
+# Check BackendConfig name khop:
+kubectl get backendconfig -n dragon
+# backend-config
+
+# Re-apply Service neu can:
+kubectl delete svc backend -n dragon
+kubectl apply -f infra/gke/backend/service.yaml
+```
+
+## 28i. Ket qua:
+- BackendConfig: **timeoutSec = 600** (10 phut) ✓
+- Backend Service: annotation da set ✓
+- GCP Load Balancer: **TIMEOUT_SEC = 600** ✓
+- SSE streaming: hoat dong binh thuong, khong con timeout ✓
+- Frontend: nhan duoc `images-ready` event ✓
+- Project plan generation: **thanh cong voi images** ✓
+
+## 28j. Luu y quan trong
+
+- **GCP Load Balancer Default**: 30s backend service timeout
+- **BackendConfig CRD**: GKE-specific resource de config GCP LB settings
+- **Propagation Time**: 2-5 phut de BackendConfig apply len GCP LB
+- **res.flush()**: Can thiet de force push SSE events ngay lap tuc
+- **Annotation Format**: Phai dung JSON string cho `cloud.google.com/backend-config`
+
+---
 
 ---
 

@@ -4,7 +4,7 @@ import { Select } from 'antd';
 import ChatMessage from '../components/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import TypingIndicator from '../components/TypingIndicator';
-import WorkspacePreview from '../components/WorkspacePreview';
+import PlanEditorView from '../components/PlanEditorView';
 import './chat.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -544,13 +544,14 @@ function ChatPage() {
 
     return (
         <div className={`chat-container ${isSplitView ? 'split-view' : ''}`}>
-            {/* Main Center Area: Workspace Preview */}
+            {/* Main Center Area: Plan Editor with BlockNote */}
             <div className="chat-main-area">
                 {(isSplitView || hasPlanMessage) && (
-                    <WorkspacePreview
-                        content={streamingPlan}
+                    <PlanEditorView
+                        markdown={streamingPlan}
+                        documentId={activePlan?.documentId}
+                        isGenerating={isStreaming}
                         status={planStatus}
-                        title="Project Plan Construction"
                         onClose={closePlan}
                     />
                 )}
