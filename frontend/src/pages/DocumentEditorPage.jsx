@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import BlockNoteEditor from '../components/BlockNoteEditor';
+import authFetch from '../utils/authFetch';
 import './document-editor.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -26,7 +27,7 @@ function DocumentEditorPage() {
             setLoading(true);
             setError(null);
 
-            const res = await fetch(`${API_BASE}/api/documents/${id}`, {
+            const res = await authFetch(`${API_BASE}/api/documents/${id}`, {
                 credentials: 'include',
             });
 
@@ -56,7 +57,7 @@ function DocumentEditorPage() {
 
         try {
             setSaveStatus('saving');
-            const res = await fetch(`${API_BASE}/api/documents/${id}`, {
+            const res = await authFetch(`${API_BASE}/api/documents/${id}`, {
                 method: 'PUT',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -88,7 +89,7 @@ function DocumentEditorPage() {
             if (!newTitle.trim()) return;
             try {
                 setSaveStatus('saving');
-                await fetch(`${API_BASE}/api/documents/${id}`, {
+                await authFetch(`${API_BASE}/api/documents/${id}`, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
@@ -111,7 +112,7 @@ function DocumentEditorPage() {
     // Export to markdown
     const handleExport = useCallback(async () => {
         try {
-            const res = await fetch(`${API_BASE}/api/documents/${id}/export`, {
+            const res = await authFetch(`${API_BASE}/api/documents/${id}/export`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },

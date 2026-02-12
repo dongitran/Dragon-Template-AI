@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import BlockNoteEditor from './BlockNoteEditor';
 import { markdownToBlockNote } from '../utils/markdownToBlockNote';
+import authFetch from '../utils/authFetch';
 import './plan-editor-view.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -52,7 +53,7 @@ function PlanEditorView({ markdown, documentId, isGenerating, status, onClose })
 
         setSaveStatus('Saving...');
         try {
-            const res = await fetch(`${API_BASE}/api/documents/${documentId}`, {
+            const res = await authFetch(`${API_BASE}/api/documents/${documentId}`, {
                 method: 'PATCH',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },

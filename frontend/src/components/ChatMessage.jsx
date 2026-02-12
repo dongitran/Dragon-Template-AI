@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FilePdfOutlined, FileOutlined, DownloadOutlined, LoadingOutlined, FileImageOutlined } from '@ant-design/icons';
+import authFetch from '../utils/authFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -16,7 +17,7 @@ function AttachmentImage({ attachment, onDownload }) {
         let cancelled = false;
         const fetchUrl = async () => {
             try {
-                const res = await fetch(
+                const res = await authFetch(
                     `${API_BASE}${attachment.downloadUrl}`,
                     { credentials: 'include' }
                 );
@@ -84,9 +85,8 @@ function FileAttachments({ attachments }) {
 
     const handleDownload = async (attachment) => {
         try {
-            const res = await fetch(
+            const res = await authFetch(
                 `${API_BASE}${attachment.downloadUrl}`,
-                { credentials: 'include' }
             );
             if (res.ok) {
                 const data = await res.json();

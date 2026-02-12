@@ -3,6 +3,7 @@ import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import '@blocknote/core/fonts/inter.css';
+import authFetch from '../utils/authFetch';
 import './blocknote-editor.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -36,11 +37,10 @@ function BlockNoteEditor({
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch(
+        const res = await authFetch(
             `${API_BASE}/api/documents/${documentId}/assets/upload`,
             {
                 method: 'POST',
-                credentials: 'include',
                 body: formData,
             }
         );

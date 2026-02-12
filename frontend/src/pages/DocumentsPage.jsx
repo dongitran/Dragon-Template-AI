@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authFetch from '../utils/authFetch';
 import './documents-page.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -17,7 +18,7 @@ function DocumentsPage() {
     const fetchDocuments = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE}/api/documents`, {
+            const res = await authFetch(`${API_BASE}/api/documents`, {
                 credentials: 'include',
             });
 
@@ -38,7 +39,7 @@ function DocumentsPage() {
         if (!window.confirm('Delete this document?')) return;
 
         try {
-            const res = await fetch(`${API_BASE}/api/documents/${docId}`, {
+            const res = await authFetch(`${API_BASE}/api/documents/${docId}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });

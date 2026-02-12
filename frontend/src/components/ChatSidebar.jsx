@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import authFetch from '../utils/authFetch';
 import './ChatSidebar.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -28,7 +29,7 @@ function ChatSidebar({ currentSessionId, onSessionCreated }) {
 
     const fetchSessions = async () => {
         try {
-            const res = await fetch(`${API_BASE}/api/sessions?limit=50`, {
+            const res = await authFetch(`${API_BASE}/api/sessions?limit=50`, {
                 credentials: 'include',
             });
             if (res.ok) {
@@ -64,7 +65,7 @@ function ChatSidebar({ currentSessionId, onSessionCreated }) {
         }
 
         try {
-            const res = await fetch(`${API_BASE}/api/sessions/${editingId}`, {
+            const res = await authFetch(`${API_BASE}/api/sessions/${editingId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -93,7 +94,7 @@ function ChatSidebar({ currentSessionId, onSessionCreated }) {
         e.stopPropagation();
 
         try {
-            const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`, {
+            const res = await authFetch(`${API_BASE}/api/sessions/${sessionId}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });

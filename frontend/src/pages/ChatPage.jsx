@@ -5,6 +5,7 @@ import ChatMessage from '../components/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import TypingIndicator from '../components/TypingIndicator';
 import PlanEditorView from '../components/PlanEditorView';
+import authFetch from '../utils/authFetch';
 import './chat.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
@@ -61,7 +62,7 @@ function ChatPage() {
 
     const fetchModels = async () => {
         try {
-            const res = await fetch(`${API_BASE}/api/chat/models`, {
+            const res = await authFetch(`${API_BASE}/api/chat/models`, {
                 credentials: 'include',
             });
             if (res.ok) {
@@ -83,7 +84,7 @@ function ChatPage() {
 
     const loadSession = async (id) => {
         try {
-            const res = await fetch(`${API_BASE}/api/sessions/${id}`, {
+            const res = await authFetch(`${API_BASE}/api/sessions/${id}`, {
                 credentials: 'include',
             });
             if (res.ok) {
@@ -129,7 +130,7 @@ function ChatPage() {
 
     const loadPlanContent = async (documentId) => {
         try {
-            const mdRes = await fetch(`${API_BASE}/api/documents/${documentId}/export`, {
+            const mdRes = await authFetch(`${API_BASE}/api/documents/${documentId}/export`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -165,7 +166,7 @@ function ChatPage() {
             formData.append('files', file);
         }
 
-        const res = await fetch(`${API_BASE}/api/upload`, {
+        const res = await authFetch(`${API_BASE}/api/upload`, {
             method: 'POST',
             credentials: 'include',
             body: formData,
@@ -209,7 +210,7 @@ function ChatPage() {
             ]);
 
             try {
-                const res = await fetch(`${API_BASE}/api/commands/generate-plan`, {
+                const res = await authFetch(`${API_BASE}/api/commands/generate-plan`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
@@ -406,7 +407,7 @@ function ChatPage() {
                 return m;
             });
 
-            const res = await fetch(`${API_BASE}/api/chat`, {
+            const res = await authFetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -488,7 +489,7 @@ function ChatPage() {
             setTimeout(() => {
                 setSessionId(currentSid => {
                     if (currentSid) {
-                        fetch(`${API_BASE}/api/sessions/${currentSid}`, { credentials: 'include' })
+                        authFetch(`${API_BASE}/api/sessions/${currentSid}`, { credentials: 'include' })
                             .then(r => r.ok ? r.json() : null)
                             .then(data => {
                                 if (data?.title && data.title !== 'New Chat') {
