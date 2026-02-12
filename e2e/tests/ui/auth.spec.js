@@ -84,7 +84,7 @@ test.describe('Authentication Flow', () => {
         await expect(page).toHaveURL('/', { timeout: 15000 });
 
         // Should show the app layout with sidebar
-        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
+        await expect(page.locator('.sidebar-new-chat-btn', { hasText: 'New Chat' })).toBeVisible();
         await expect(page.getByText('Documents')).toBeVisible();
     });
 
@@ -192,7 +192,7 @@ test.describe('Authenticated Session', () => {
         await avatar.click();
 
         // Should show user display name in dropdown
-        await expect(page.getByText('Test User')).toBeVisible();
+        await expect(page.locator('.ant-dropdown-menu').getByText('Test User')).toBeVisible();
     });
 
     test('should logout and redirect to login', async ({ page }) => {
@@ -213,7 +213,7 @@ test.describe('Authenticated Session', () => {
 
         // Should still be authenticated, not redirected to login
         await expect(page).not.toHaveURL('/login', { timeout: 5000 });
-        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
+        await expect(page.locator('.sidebar-new-chat-btn', { hasText: 'New Chat' })).toBeVisible();
     });
 
     test('should allow re-login after logout', async ({ page }) => {
@@ -229,7 +229,7 @@ test.describe('Authenticated Session', () => {
         await page.getByRole('button', { name: /sign in/i }).click();
 
         await expect(page).not.toHaveURL('/login', { timeout: 10000 });
-        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
+        await expect(page.locator('.sidebar-new-chat-btn', { hasText: 'New Chat' })).toBeVisible();
     });
 });
 

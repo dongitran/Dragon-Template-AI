@@ -30,7 +30,7 @@ test.describe('Navigation', () => {
         const sidebar = page.locator('.ant-layout-sider');
         await expect(sidebar).toBeVisible();
 
-        await expect(page.locator('.sidebar-nav-item', { hasText: 'Chat' })).toBeVisible();
+        await expect(page.locator('.sidebar-new-chat-btn', { hasText: 'New Chat' })).toBeVisible();
         await expect(page.locator('.sidebar-nav-item', { hasText: 'Documents' })).toBeVisible();
         await expect(page.locator('.sidebar-nav-item', { hasText: 'Workflows' })).toBeVisible();
         await expect(page.locator('.sidebar-nav-item', { hasText: 'Projects' })).toBeVisible();
@@ -65,8 +65,8 @@ test.describe('Navigation', () => {
         await page.locator('.sidebar-nav-item', { hasText: 'Documents' }).click();
         await expect(page).toHaveURL('/documents');
 
-        // Navigate back to Chat
-        await page.locator('.sidebar-nav-item', { hasText: 'Chat' }).click();
+        // Navigate back to Chat using New Chat button
+        await page.locator('.sidebar-new-chat-btn', { hasText: 'New Chat' }).click();
         await expect(page).toHaveURL('/');
     });
 
