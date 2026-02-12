@@ -1,4 +1,4 @@
-/* BlockNote Editor — Dark theme overrides to match app design */
+/* BlockNote Editor — Theme overrides to match app design */
 
 .blocknote-editor-wrapper {
     flex: 1;
@@ -10,7 +10,7 @@
 .blocknote-editor-wrapper [data-theming-css-variables-demo],
 .blocknote-editor-wrapper .bn-container,
 .blocknote-editor-wrapper .bn-editor {
-    background: #0a0a0a;
+    background: var(--bg-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -27,7 +27,7 @@
 /* Slash menu and toolbar */
 .blocknote-editor-wrapper [data-mantine-color-scheme="dark"] .mantine-Menu-dropdown,
 .blocknote-editor-wrapper [data-mantine-color-scheme="dark"] .mantine-Popover-dropdown {
-    background: #1a1a2e;
+    background: var(--bg-card-hover);
     border: 1px solid rgba(108, 92, 231, 0.2);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     border-radius: 8px;
@@ -53,7 +53,7 @@
 /* Table blocks */
 .blocknote-editor-wrapper .bn-table-content td,
 .blocknote-editor-wrapper .bn-table-content th {
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-color-strong);
     padding: 8px 12px;
 }
 
@@ -61,19 +61,19 @@
 .blocknote-editor-wrapper .bn-editor h1 {
     font-weight: 700;
     margin-top: 24px;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .blocknote-editor-wrapper .bn-editor h2 {
     font-weight: 600;
     margin-top: 20px;
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
 }
 
 .blocknote-editor-wrapper .bn-editor h3 {
     font-weight: 600;
     margin-top: 16px;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
 }
 
 /* Checkbox styling */
@@ -83,5 +83,5 @@
 
 /* Placeholder text */
 .blocknote-editor-wrapper .bn-editor [data-is-empty-and-focused] [data-placeholder]::before {
-    color: rgba(255, 255, 255, 0.25);
+    color: var(--text-tertiary);
 }
