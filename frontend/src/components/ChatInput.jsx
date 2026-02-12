@@ -221,7 +221,6 @@ function ChatInput({ onSend, isStreaming, onStop, modelOptions, selectedModel, o
                     onInput={adjustHeight}
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
-                    disabled={isStreaming}
                 />
 
                 {/* Hidden file input */}
