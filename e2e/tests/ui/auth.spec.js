@@ -40,8 +40,8 @@ test.describe('Authentication Flow', () => {
     test('should display login page with correct elements', async ({ page }) => {
         await page.goto('/login');
 
-        // Dragon AI branding
-        await expect(page.getByText('Dragon AI')).toBeVisible();
+        // Dragon Template branding
+        await expect(page.getByText('Dragon Template')).toBeVisible();
         await expect(page.getByText('Sign in to your account')).toBeVisible();
 
         // Form elements
@@ -94,7 +94,7 @@ test.describe('Authentication Flow', () => {
 
         await expect(page).toHaveURL('/register');
         await expect(page.getByRole('heading', { name: 'Create Account' })).toBeVisible();
-        await expect(page.getByText('Join Dragon AI')).toBeVisible();
+        await expect(page.getByText('Join Dragon Template')).toBeVisible();
     });
 
     test('should display register page with correct elements', async ({ page }) => {
