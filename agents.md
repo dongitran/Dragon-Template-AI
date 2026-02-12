@@ -93,18 +93,12 @@ npm run test:unit     # Unit tests only (16 files)
 npm run test:integration  # Integration tests (5 files)
 ```
 
-- Tests use `mongodb-memory-server` — no real MongoDB needed
-- Config: `backend/jest.config.js`
-
 ### Frontend (Vitest)
 
 ```bash
 cd frontend
 npm test              # Unit tests with Vitest
 ```
-
-- Uses `@testing-library/react` + `jsdom`
-- Config: `frontend/vite.config.js`
 
 ### E2E (Playwright)
 
@@ -115,9 +109,11 @@ npm run test:headed   # Run with browser visible
 npm run test:ui       # Playwright UI mode
 ```
 
-- Tests cover API endpoints (auth, chat, documents, sessions, upload) and UI flows (auth, chat, navigation, sessions, upload)
-- Config: `e2e/playwright.config.js`
-- Fixtures: `e2e/fixtures/` (PDF, images, CSV)
+### Browser Testing
+
+**Login credentials:**
+- Username: `testuser`
+- Password: `testpass123`
 
 ---
 

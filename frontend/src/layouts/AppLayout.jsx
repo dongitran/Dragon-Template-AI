@@ -6,11 +6,11 @@ import {
     ApartmentOutlined,
     ProjectOutlined,
     SettingOutlined,
-    EditOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     LogoutOutlined,
     UserOutlined,
+    PlusOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,7 +20,6 @@ import './AppLayout.css';
 const { Sider, Content } = Layout;
 
 const navItems = [
-    { key: '/', icon: <MessageOutlined />, label: 'Chat' },
     { key: '/documents', icon: <FileTextOutlined />, label: 'Documents' },
     { key: '/workflows', icon: <ApartmentOutlined />, label: 'Workflows' },
     { key: '/projects', icon: <ProjectOutlined />, label: 'Projects' },
@@ -42,10 +41,6 @@ function AppLayout({ children }) {
     const handleLogout = async () => {
         await logout();
         navigate('/login');
-    };
-
-    const handleNewChat = () => {
-        navigate('/');
     };
 
     const userMenuItems = [
@@ -83,15 +78,18 @@ function AppLayout({ children }) {
                 width={260}
                 collapsedWidth={0}
             >
-                {/* Header: Logo + New Chat */}
+                {/* Header: Logo */}
                 <div className="sidebar-header">
                     <span className="sidebar-logo-text">Dragon Template</span>
-                    <button
-                        className="sidebar-new-chat-btn"
-                        onClick={handleNewChat}
-                        title="New chat"
-                    >
-                        <EditOutlined />
+                </div>
+
+                {/* New Chat Button */}
+                <div className="sidebar-new-chat-wrapper">
+                    <button className="sidebar-new-chat-btn" onClick={() => navigate('/')}>
+                        <span className="sidebar-new-chat-icon">
+                            <PlusOutlined />
+                        </span>
+                        <span>New Chat</span>
                     </button>
                 </div>
 
