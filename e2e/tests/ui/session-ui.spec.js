@@ -15,24 +15,25 @@
  *
  *  Session navigation:
  *   6. should navigate to new chat when clicking "New Chat" button
- *   7. should load session when clicking sidebar item
- *   8. should show messages after loading session
+ *   7. should enable send button in new chat when leaving active streaming
+ *   8. should load session when clicking sidebar item
+ *   9. should show messages after loading session
  *
  *  Session actions:
- *   9. should show rename and delete buttons on hover
- *  10. should rename session via inline edit
- *  11. should delete session from sidebar
+ *  10. should show rename and delete buttons on hover
+ *  11. should rename session via inline edit
+ *  12. should delete session from sidebar
  *
  *  Session persistence:
- *  12. should persist messages after page reload
+ *  13. should persist messages after page reload
  *
  *  Multi-session:
- *  13. should create and switch between multiple sessions
+ *  14. should create and switch between multiple sessions
  *
  *  Rename edge cases:
- *  14. should cancel rename with Escape key
- *  15. should redirect to home when deleting active session
- *  16. should revert empty rename to original title
+ *  15. should cancel rename with Escape key
+ *  16. should redirect to home when deleting active session
+ *  17. should revert empty rename to original title
  */
 import { test, expect } from '@playwright/test';
 
@@ -105,6 +106,53 @@ test.describe('Session UI', () => {
 
         // Welcome screen should be visible
         await expect(page.locator('.chat-empty')).toBeVisible();
+    });
+
+    test('should enable send button in new chat when leaving active streaming', async ({ page }) => {
+        const textarea = page.locator('.chat-input-textarea');
+        const sendBtn = page.locator('.chat-send-btn');
+        const stopBtn = page.locator('.chat-stop-btn');
+
+        // Send a long message that will trigger streaming
+        await textarea.fill('Write a 1000 word story about dragons');
+        await sendBtn.click();
+
+        // Wait for session creation
+        await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
+
+        // Wait for streaming to start (stop button appears)
+        await expect(stopBtn).toBeVisible({ timeout: 15000 });
+
+        // CRITICAL: Click "New Chat" DURING streaming
+        await page.locator('.chat-sidebar-new-btn').click();
+
+        // Should navigate to new chat
+        await expect(page).toHaveURL('/');
+
+        // Welcome screen should be visible
+        await expect(page.locator('.chat-empty')).toBeVisible();
+
+        // BUG VERIFICATION PART 1: Send button (not Stop) should be visible
+        // This verifies isStreaming was reset (no longer showing Stop button)
+        await expect(sendBtn).toBeVisible({ timeout: 5000 });
+        await expect(stopBtn).not.toBeVisible();
+
+        // BUG VERIFICATION PART 2: Type text and button should become enabled
+        await textarea.fill('Test message in new chat');
+
+        // CRITICAL: With text, send button should be ENABLED (not stuck disabled)
+        await expect(sendBtn).toBeEnabled({ timeout: 2000 });
+
+        // Should be able to click send
+        await sendBtn.click();
+
+        // Should create a new session
+        await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
+
+        // User message should appear
+        const userMsg = page.locator('.chat-message.user');
+        await expect(userMsg).toBeVisible({ timeout: 10000 });
+        await expect(userMsg).toContainText('Test message in new chat');
     });
 
     test('should load session when clicking sidebar item', async ({ page }) => {

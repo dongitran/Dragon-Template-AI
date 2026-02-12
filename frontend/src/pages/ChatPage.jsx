@@ -46,12 +46,22 @@ function ChatPage() {
                 loadSession(urlSessionId);
             }
         } else {
-            // New chat
+            // New chat - reset all state
             setSessionId(null);
             setMessages([]);
             setSessionTitle('New Chat');
             setIsSplitView(false);
             setActivePlan(null);
+
+            // Reset streaming state (fix for send button stuck disabled)
+            setIsStreaming(false);
+            isStreamingRef.current = false;
+
+            // Abort any ongoing streaming request
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
         }
     }, [urlSessionId]);
 
