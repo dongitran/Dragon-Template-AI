@@ -6,7 +6,7 @@
  * 2. should navigate to Documents page
  * 3. should navigate to Workflows page
  * 4. should navigate to Projects page
- * 5. should navigate to Settings page
+ * 5. should navigate to Settings page via user menu
  * 6. should navigate back to Chat (home)
  * 7. should collapse and expand sidebar
  * 8. should protect routes when not authenticated
@@ -30,40 +30,43 @@ test.describe('Navigation', () => {
         const sidebar = page.locator('.ant-layout-sider');
         await expect(sidebar).toBeVisible();
 
-        await expect(page.getByText('Chat', { exact: true })).toBeVisible();
-        await expect(page.getByText('Documents')).toBeVisible();
-        await expect(page.getByText('Workflows')).toBeVisible();
-        await expect(page.getByText('Projects')).toBeVisible();
-        await expect(page.getByText('Settings')).toBeVisible();
+        await expect(page.locator('.sidebar-nav-item', { hasText: 'Chat' })).toBeVisible();
+        await expect(page.locator('.sidebar-nav-item', { hasText: 'Documents' })).toBeVisible();
+        await expect(page.locator('.sidebar-nav-item', { hasText: 'Workflows' })).toBeVisible();
+        await expect(page.locator('.sidebar-nav-item', { hasText: 'Projects' })).toBeVisible();
     });
 
     test('should navigate to Documents page', async ({ page }) => {
-        await page.getByText('Documents').click();
+        await page.locator('.sidebar-nav-item', { hasText: 'Documents' }).click();
         await expect(page).toHaveURL('/documents');
     });
 
     test('should navigate to Workflows page', async ({ page }) => {
-        await page.getByText('Workflows').click();
+        await page.locator('.sidebar-nav-item', { hasText: 'Workflows' }).click();
         await expect(page).toHaveURL('/workflows');
     });
 
     test('should navigate to Projects page', async ({ page }) => {
-        await page.getByText('Projects').click();
+        await page.locator('.sidebar-nav-item', { hasText: 'Projects' }).click();
         await expect(page).toHaveURL('/projects');
     });
 
-    test('should navigate to Settings page', async ({ page }) => {
+    test('should navigate to Settings page via user menu', async ({ page }) => {
+        // Settings is in the user dropdown menu
+        const userBtn = page.locator('.sidebar-user-btn');
+        await userBtn.click();
+
         await page.getByText('Settings').click();
         await expect(page).toHaveURL('/settings');
     });
 
     test('should navigate back to Chat (home)', async ({ page }) => {
         // Go to documents first
-        await page.getByText('Documents').click();
+        await page.locator('.sidebar-nav-item', { hasText: 'Documents' }).click();
         await expect(page).toHaveURL('/documents');
 
         // Navigate back to Chat
-        await page.getByText('Chat', { exact: true }).click();
+        await page.locator('.sidebar-nav-item', { hasText: 'Chat' }).click();
         await expect(page).toHaveURL('/');
     });
 
@@ -74,18 +77,18 @@ test.describe('Navigation', () => {
         await expect(sider).not.toHaveClass(/ant-layout-sider-collapsed/);
 
         // Click collapse trigger
-        await page.locator('.app-trigger').click();
+        await page.locator('.topbar-toggle-btn').click();
         await expect(sider).toHaveClass(/ant-layout-sider-collapsed/);
 
         // Click expand trigger
-        await page.locator('.app-trigger').click();
+        await page.locator('.topbar-toggle-btn').click();
         await expect(sider).not.toHaveClass(/ant-layout-sider-collapsed/);
     });
 
     test('should protect routes when not authenticated', async ({ page }) => {
-        // Logout first
-        const avatar = page.locator('.ant-avatar');
-        await avatar.click();
+        // Logout first via user dropdown
+        const userBtn = page.locator('.sidebar-user-btn');
+        await userBtn.click();
         await page.getByText('Logout').click();
         await expect(page).toHaveURL('/login', { timeout: 5000 });
 

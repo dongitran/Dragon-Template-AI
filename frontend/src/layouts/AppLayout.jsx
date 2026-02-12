@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
+import { Layout, Avatar, Dropdown } from 'antd';
 import {
     MessageOutlined,
     FileTextOutlined,
     ApartmentOutlined,
     ProjectOutlined,
     SettingOutlined,
+    EditOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     LogoutOutlined,
@@ -16,14 +17,13 @@ import { useAuth } from '../contexts/AuthContext';
 import ChatSidebar from '../components/ChatSidebar';
 import './AppLayout.css';
 
-const { Header, Sider, Content } = Layout;
+const { Sider, Content } = Layout;
 
-const menuItems = [
+const navItems = [
     { key: '/', icon: <MessageOutlined />, label: 'Chat' },
     { key: '/documents', icon: <FileTextOutlined />, label: 'Documents' },
     { key: '/workflows', icon: <ApartmentOutlined />, label: 'Workflows' },
     { key: '/projects', icon: <ProjectOutlined />, label: 'Projects' },
-    { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
 ];
 
 function AppLayout({ children }) {
@@ -32,15 +32,20 @@ function AppLayout({ children }) {
     const location = useLocation();
     const { user, logout } = useAuth();
 
-    // Extract sessionId from URL if on chat page
     const isChatPage = location.pathname === '/' || location.pathname.startsWith('/chat/');
     const currentSessionId = location.pathname.startsWith('/chat/')
         ? location.pathname.split('/chat/')[1]
         : null;
 
+    const selectedKey = isChatPage ? '/' : location.pathname;
+
     const handleLogout = async () => {
         await logout();
         navigate('/login');
+    };
+
+    const handleNewChat = () => {
+        navigate('/');
     };
 
     const userMenuItems = [
@@ -52,6 +57,12 @@ function AppLayout({ children }) {
         },
         { type: 'divider' },
         {
+            key: 'settings',
+            icon: <SettingOutlined />,
+            label: 'Settings',
+            onClick: () => navigate('/settings'),
+        },
+        {
             key: 'logout',
             icon: <LogoutOutlined />,
             label: 'Logout',
@@ -62,9 +73,6 @@ function AppLayout({ children }) {
 
     const avatarLetter = user?.displayName?.[0] || user?.email?.[0] || 'U';
 
-    // Determine active menu key — chat pages map to '/'
-    const selectedKey = isChatPage ? '/' : location.pathname;
-
     return (
         <Layout className="app-layout">
             <Sider
@@ -72,45 +80,65 @@ function AppLayout({ children }) {
                 collapsible
                 collapsed={collapsed}
                 className="app-sider"
-                width={220}
+                width={260}
+                collapsedWidth={0}
             >
-                <div className="app-logo">
-                    {!collapsed && <span className="app-logo-text">Dragon Template</span>}
+                {/* Header: Logo + New Chat */}
+                <div className="sidebar-header">
+                    <span className="sidebar-logo-text">Dragon Template</span>
+                    <button
+                        className="sidebar-new-chat-btn"
+                        onClick={handleNewChat}
+                        title="New chat"
+                    >
+                        <EditOutlined />
+                    </button>
                 </div>
 
-                {!collapsed && (
-                    <ChatSidebar
-                        currentSessionId={currentSessionId}
-                    />
+                {/* Navigation */}
+                <nav className="sidebar-nav">
+                    {navItems.map(item => (
+                        <button
+                            key={item.key}
+                            className={`sidebar-nav-item ${selectedKey === item.key ? 'active' : ''}`}
+                            onClick={() => navigate(item.key)}
+                        >
+                            <span className="sidebar-nav-icon">{item.icon}</span>
+                            <span className="sidebar-nav-label">{item.label}</span>
+                        </button>
+                    ))}
+                </nav>
+
+                {/* Chat list - only on chat pages */}
+                {isChatPage && (
+                    <ChatSidebar currentSessionId={currentSessionId} />
                 )}
 
-                <Menu
-                    theme="dark"
-                    mode="inline"
-                    selectedKeys={[selectedKey]}
-                    items={menuItems}
-                    onClick={({ key }) => navigate(key)}
-                    className="app-menu"
-                />
+                {/* Bottom: User profile */}
+                <div className="sidebar-footer">
+                    <Dropdown menu={{ items: userMenuItems }} placement="topRight" trigger={['click']}>
+                        <button className="sidebar-user-btn">
+                            <Avatar size={28} style={{ backgroundColor: '#6C5CE7', flexShrink: 0 }}>
+                                {avatarLetter.toUpperCase()}
+                            </Avatar>
+                            <span className="sidebar-user-name">
+                                {user?.displayName || user?.email || 'User'}
+                            </span>
+                        </button>
+                    </Dropdown>
+                </div>
             </Sider>
 
             <Layout>
-                <Header className="app-header">
-                    <Space>
-                        {collapsed ? (
-                            <MenuUnfoldOutlined className="app-trigger" onClick={() => setCollapsed(false)} />
-                        ) : (
-                            <MenuFoldOutlined className="app-trigger" onClick={() => setCollapsed(true)} />
-                        )}
-                    </Space>
-                    <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                        <Avatar
-                            style={{ backgroundColor: '#6C5CE7', cursor: 'pointer' }}
-                        >
-                            {avatarLetter.toUpperCase()}
-                        </Avatar>
-                    </Dropdown>
-                </Header>
+                <div className="app-topbar">
+                    <button
+                        className="topbar-toggle-btn"
+                        onClick={() => setCollapsed(!collapsed)}
+                        title={collapsed ? 'Open sidebar' : 'Close sidebar'}
+                    >
+                        {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    </button>
+                </div>
 
                 <Content className="app-content">
                     {children}
@@ -121,4 +149,3 @@ function AppLayout({ children }) {
 }
 
 export default AppLayout;
-

@@ -1,25 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import authFetch from '../utils/authFetch';
 import './ChatSidebar.css';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
-function ChatSidebar({ currentSessionId, onSessionCreated }) {
+function ChatSidebar({ currentSessionId }) {
     const [sessions, setSessions] = useState([]);
     const [editingId, setEditingId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
     const editInputRef = useRef(null);
     const navigate = useNavigate();
-    const location = useLocation();
 
-    // Fetch sessions on mount and when currentSessionId changes
     useEffect(() => {
         fetchSessions();
     }, [currentSessionId]);
 
-    // Focus edit input when editing starts
     useEffect(() => {
         if (editingId && editInputRef.current) {
             editInputRef.current.focus();
@@ -41,13 +38,8 @@ function ChatSidebar({ currentSessionId, onSessionCreated }) {
         }
     };
 
-    const handleNewChat = () => {
-        navigate('/');
-        if (onSessionCreated) onSessionCreated(null);
-    };
-
     const handleSelectSession = (sessionId) => {
-        if (editingId) return; // Don't navigate while editing
+        if (editingId) return;
         navigate(`/chat/${sessionId}`);
     };
 
@@ -100,10 +92,8 @@ function ChatSidebar({ currentSessionId, onSessionCreated }) {
             });
             if (res.ok) {
                 setSessions(prev => prev.filter(s => s.id !== sessionId));
-                // If we deleted the current session, navigate to new chat
                 if (currentSessionId === sessionId) {
                     navigate('/');
-                    if (onSessionCreated) onSessionCreated(null);
                 }
             }
         } catch (err) {
@@ -134,13 +124,11 @@ function ChatSidebar({ currentSessionId, onSessionCreated }) {
         return date.toLocaleDateString();
     };
 
+    if (sessions.length === 0) return null;
+
     return (
         <div className="chat-sidebar">
-            <button className="chat-sidebar-new-btn" onClick={handleNewChat}>
-                <PlusOutlined />
-                <span>New Chat</span>
-            </button>
-
+            <div className="chat-sidebar-label">Recent</div>
             <div className="chat-sidebar-list">
                 {sessions.map(session => {
                     const isActive = currentSessionId === session.id;

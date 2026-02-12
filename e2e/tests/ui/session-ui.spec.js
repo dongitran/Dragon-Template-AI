@@ -5,8 +5,8 @@
  *
  * Test cases:
  *  Sidebar basics:
- *   1. should show "New Chat" button in sidebar
- *   2. should show empty state initially
+ *   1. should show new chat button in sidebar header
+ *   2. should show chat sidebar section after creating a session
  *
  *  Session creation:
  *   3. should create session when sending first message
@@ -14,7 +14,7 @@
  *   5. should show session in sidebar after sending message
  *
  *  Session navigation:
- *   6. should navigate to new chat when clicking "New Chat" button
+ *   6. should navigate to new chat when clicking new chat button
  *   7. should enable send button in new chat when leaving active streaming
  *   8. should load session when clicking sidebar item
  *   9. should show messages after loading session
@@ -52,16 +52,21 @@ test.describe('Session UI', () => {
 
     // ─── Sidebar Basics ───
 
-    test('should show New Chat button in sidebar', async ({ page }) => {
-        const newChatBtn = page.locator('.chat-sidebar-new-btn');
+    test('should show new chat button in sidebar header', async ({ page }) => {
+        const newChatBtn = page.locator('.sidebar-new-chat-btn');
         await expect(newChatBtn).toBeVisible();
-        await expect(newChatBtn).toContainText('New Chat');
     });
 
-    test('should show chat sidebar section', async ({ page }) => {
-        // The sidebar should be visible with a new chat button
+    test('should show chat sidebar section after creating a session', async ({ page }) => {
+        // Send a message to create a session first
+        const textarea = page.locator('.chat-input-textarea');
+        await textarea.fill('Sidebar visibility test');
+        await page.locator('.chat-send-btn').click();
+        await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
+
+        // The sidebar should show the chat list with the session
         const sidebar = page.locator('.chat-sidebar');
-        await expect(sidebar).toBeVisible();
+        await expect(sidebar).toBeVisible({ timeout: 10000 });
     });
 
     // ─── Session Creation ───
@@ -91,15 +96,15 @@ test.describe('Session UI', () => {
 
     // ─── Session Navigation ───
 
-    test('should navigate to new chat when clicking New Chat', async ({ page }) => {
+    test('should navigate to new chat when clicking new chat button', async ({ page }) => {
         // Send a message first to create a session
         const textarea = page.locator('.chat-input-textarea');
         await textarea.fill('Navigate away test');
         await page.locator('.chat-send-btn').click();
         await expect(page).toHaveURL(/\/chat\/[a-f0-9]{24}/, { timeout: 15000 });
 
-        // Click "New Chat"
-        await page.locator('.chat-sidebar-new-btn').click();
+        // Click new chat button in sidebar header
+        await page.locator('.sidebar-new-chat-btn').click();
 
         // Should be back to root
         await expect(page).toHaveURL('/');
@@ -123,8 +128,8 @@ test.describe('Session UI', () => {
         // Wait for streaming to start (stop button appears)
         await expect(stopBtn).toBeVisible({ timeout: 15000 });
 
-        // CRITICAL: Click "New Chat" DURING streaming
-        await page.locator('.chat-sidebar-new-btn').click();
+        // CRITICAL: Click new chat button DURING streaming
+        await page.locator('.sidebar-new-chat-btn').click();
 
         // Should navigate to new chat
         await expect(page).toHaveURL('/');
@@ -169,7 +174,7 @@ test.describe('Session UI', () => {
         await page.waitForTimeout(3000);
 
         // Navigate to new chat
-        await page.locator('.chat-sidebar-new-btn').click();
+        await page.locator('.sidebar-new-chat-btn').click();
         await expect(page).toHaveURL('/');
 
         // Navigate back to the session directly via URL
@@ -306,8 +311,8 @@ test.describe('Session UI', () => {
         // Capture first session URL
         const firstSessionUrl = page.url();
 
-        // Create second session via "New Chat"
-        await page.locator('.chat-sidebar-new-btn').click();
+        // Create second session via new chat button
+        await page.locator('.sidebar-new-chat-btn').click();
         await expect(page).toHaveURL('/');
 
         // Send message in new session
@@ -440,4 +445,3 @@ test.describe('Session UI', () => {
         await expect(firstItem).toContainText(originalTitle);
     });
 });
-

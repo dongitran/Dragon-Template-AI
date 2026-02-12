@@ -1,32 +1,20 @@
 .chat-sidebar {
     display: flex;
     flex-direction: column;
-    padding: 12px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    max-height: 50vh;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.chat-sidebar-new-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(108, 92, 231, 0.15);
-    border: 1px solid rgba(108, 92, 231, 0.3);
-    border-radius: 8px;
-    color: #a78bfa;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    width: 100%;
-    margin-bottom: 8px;
-}
-
-.chat-sidebar-new-btn:hover {
-    background: rgba(108, 92, 231, 0.25);
-    border-color: rgba(108, 92, 231, 0.5);
-    color: #c4b5fd;
+.chat-sidebar-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px 6px;
+    flex-shrink: 0;
 }
 
 .chat-sidebar-list {
@@ -34,7 +22,8 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+    padding: 0 8px 8px;
 }
 
 .chat-sidebar-list::-webkit-scrollbar {
@@ -54,11 +43,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 7px 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
-    min-height: 36px;
+    min-height: 34px;
 }
 
 .chat-sidebar-item:hover {
@@ -66,7 +55,7 @@
 }
 
 .chat-sidebar-item.active {
-    background: rgba(108, 92, 231, 0.15);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .chat-sidebar-item-content {
@@ -74,12 +63,12 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 }
 
 .chat-sidebar-item-title {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.75);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -87,12 +76,12 @@
 }
 
 .chat-sidebar-item.active .chat-sidebar-item-title {
-    color: #c4b5fd;
+    color: #fff;
 }
 
 .chat-sidebar-item-time {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.25);
 }
 
 /* Actions — hidden by default, shown on hover */
