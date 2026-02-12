@@ -107,10 +107,8 @@ function AppLayout({ children }) {
                     ))}
                 </nav>
 
-                {/* Chat list - only on chat pages */}
-                {isChatPage && (
-                    <ChatSidebar currentSessionId={currentSessionId} />
-                )}
+                {/* Chat list - always visible */}
+                <ChatSidebar currentSessionId={currentSessionId} />
 
                 {/* Bottom: User profile */}
                 <div className="sidebar-footer">
