@@ -11,11 +11,12 @@
  *  5. should display AI response after streaming completes
  *  6. should change model via selector
  *  7. should handle Enter key to send and Shift+Enter for newline
- *  8. should disable input during streaming
- *  9. should display multi-turn conversation correctly
- * 10. should keep user message visible during AI streaming
- * 11. should redirect to home for non-existent session
- * 12. should stop streaming when clicking stop button
+ *  8. should keep input enabled during streaming but show stop button
+ *  9. should allow typing next message during streaming
+ * 10. should display multi-turn conversation correctly
+ * 11. should keep user message visible during AI streaming
+ * 12. should redirect to home for non-existent session
+ * 13. should stop streaming when clicking stop button
  */
 import { test, expect } from '@playwright/test';
 
@@ -160,16 +161,72 @@ test.describe('Chat UI', () => {
         await expect(userMessage).toContainText('Test Enter key');
     });
 
-    test('should disable input during streaming', async ({ page }) => {
+    test('should keep input enabled during streaming but show stop button', async ({ page }) => {
         const input = page.locator('.chat-input-container textarea');
         await input.fill('Count from 1 to 10 slowly');
         await page.locator('.chat-send-btn').click();
 
         // During streaming, stop button should appear instead of send
         const stopBtn = page.locator('.chat-stop-btn');
-        // It may appear briefly — check either stop button or that streaming started
-        const assistantMsg = page.locator('.chat-message.assistant');
-        await expect(stopBtn.or(assistantMsg)).toBeVisible({ timeout: 15000 });
+        await expect(stopBtn).toBeVisible({ timeout: 15000 });
+
+        // CRITICAL: Input should remain ENABLED during streaming (new behavior)
+        await expect(input).toBeEnabled();
+
+        // Upload button should be disabled
+        const uploadBtn = page.locator('.chat-upload-btn');
+        await expect(uploadBtn).toBeDisabled();
+
+        // Model selector should be disabled
+        const modelSelector = page.locator('.chat-input-model-selector .ant-select, .ant-select.chat-input-model-selector');
+        // Check if disabled by trying to click and seeing if dropdown opens
+        await modelSelector.click();
+        const dropdown = page.locator('.ant-select-dropdown');
+        await expect(dropdown).not.toBeVisible({ timeout: 1000 });
+    });
+
+    test('should allow typing next message during streaming', async ({ page }) => {
+        const input = page.locator('.chat-input-container textarea');
+
+        // Send first message
+        await input.fill('Count from 1 to 5');
+        await page.locator('.chat-send-btn').click();
+
+        // Wait for streaming to start (stop button appears)
+        const stopBtn = page.locator('.chat-stop-btn');
+        await expect(stopBtn).toBeVisible({ timeout: 15000 });
+
+        // User should be able to type next message while streaming
+        await input.fill('What is 2 + 2?');
+
+        // Verify input contains the next message
+        const inputValue = await input.inputValue();
+        expect(inputValue).toBe('What is 2 + 2?');
+
+        // Pressing Enter should NOT send (streaming in progress)
+        await page.keyboard.press('Enter');
+
+        // Input should still have the text (not sent yet)
+        const valueAfterEnter = await input.inputValue();
+        expect(valueAfterEnter).toBe('What is 2 + 2?');
+
+        // Wait for streaming to complete (send button reappears)
+        const sendBtn = page.locator('.chat-send-btn');
+        await expect(sendBtn).toBeVisible({ timeout: 30000 });
+
+        // Now pressing Enter should send the queued message
+        await page.keyboard.press('Enter');
+
+        // Second user message should appear
+        const allUserMessages = page.locator('.chat-message.user');
+        await expect(allUserMessages).toHaveCount(2, { timeout: 10000 });
+
+        // Verify second message content
+        await expect(allUserMessages.nth(1)).toContainText('What is 2 + 2?');
+
+        // Input should be cleared after sending
+        const finalValue = await input.inputValue();
+        expect(finalValue).toBe('');
     });
 
     test('should display multi-turn conversation correctly', async ({ page }) => {
